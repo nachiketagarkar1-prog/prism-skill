@@ -5,6 +5,7 @@ import { AssistantAvatar } from "./PrismLogo";
 import { Markdown } from "./Markdown";
 import { BuildCard, ExcelCard } from "./BuildCard";
 import { BriefForm } from "./BriefForm";
+import { ReviewCard } from "./ReviewCard";
 import { useStore } from "../state/store";
 import { cx } from "../lib/util";
 
@@ -49,6 +50,7 @@ export function MessageList({ thread, outdent }: { thread: Thread; outdent: bool
                 <>
                   <Markdown text={m.text} />
                   {m.intake && <BriefForm threadId={thread.id} msgId={m.id} intake={m.intake} />}
+                  {m.review && <ReviewCard threadId={thread.id} msgId={m.id} review={m.review} />}
                   {m.attachment && <Attachment {...m.attachment} />}
                   {m.footnote && <div className="mt-2 text-xs text-slate-400">{m.footnote}</div>}
                 </>

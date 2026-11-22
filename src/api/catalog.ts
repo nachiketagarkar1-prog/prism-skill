@@ -57,6 +57,7 @@ export const TYPE_LABEL: Record<string, string> = {
   strategy_mapping: "Strategy Mapping",
   market_overview: "Market Overview",
   gtm_strategy: "GTM Strategy",
+  custom: "Custom research",
 };
 
 const MARKET = "Blood Bank Serology";
@@ -274,28 +275,49 @@ export const PROTOTYPE_FORECAST = "2026–2033";
 
 export type Coverage = { ok: true; entry: SampleEntry } | { ok: false; reasons: string[] };
 
-export function coverage(skill: Skill, type: string, region: string, market: string, forecast: string): Coverage {
+/**
+ * Can this prototype deliver the request straight from the loaded GVR report?
+ * Reasons are phrased as what an analyst would need to validate.
+ */
+export function coverage(skill: Skill, type: string, region: string, market: string, forecast: string, customLabel = ""): Coverage {
   const noun = skill === "deck" ? "presentation" : "report";
   const pool = SAMPLES.filter((s) => s.skill === skill);
   const reasons: string[] = [];
-  if (market && !/blood\s*bank\s*serology/i.test(market))
-    reasons.push(
-      `Evidence for ${market} isn't loaded in this prototype (it holds the GVR Blood Bank Serology report only), and live research isn't connected.`,
-    );
+  if (type === "custom") reasons.push(`“${customLabel || "Custom research"}” is a custom ${noun}: an analyst scopes it on GVR methodology before it is built.`);
+  if (market && !/blood\s*bank\s*serology/i.test(market)) reasons.push(`${market} data isn't in the loaded GVR report; it needs research and validation.`);
   const regions = [...new Set(pool.map((s) => s.region))];
-  if (region && !regions.includes(region))
-    reasons.push(
-      `The ${noun}s here cover ${regions.join(" and ")}. A ${region} ${noun} needs a ${region} split, which the loaded GVR report doesn't have; filling it needs live research.`,
-    );
-  if (type && !pool.some((s) => s.type === type))
-    reasons.push(
-      `A ${TYPE_LABEL[type] ?? type} ${noun} needs the live skill; this prototype has ${[...new Set(pool.map((s) => TYPE_LABEL[s.type]))].join(", ")} ${noun}s.`,
-    );
+  if (region && !regions.includes(region)) reasons.push(`A ${region} view needs a ${region} split that the loaded GVR report doesn't have.`);
+  if (type && type !== "custom" && !pool.some((s) => s.type === type))
+    reasons.push(`A ${TYPE_LABEL[type] ?? type} ${noun} isn't built from the loaded GVR report yet.`);
   if (forecast && forecast.replace(/\s*[-—–]\s*/, "–") !== PROTOTYPE_FORECAST)
-    reasons.push(`The loaded GVR data is built on a ${PROTOTYPE_FORECAST} forecast; a ${forecast} version needs a live build.`);
+    reasons.push(`A ${forecast} forecast differs from the loaded GVR report (${PROTOTYPE_FORECAST}).`);
   if (reasons.length) return { ok: false, reasons };
   const entry = pool.find((s) => s.type === type && s.region === region);
-  return entry ? { ok: true, entry } : { ok: false, reasons: [`No ${TYPE_LABEL[type]} ${noun} for ${region} is available in this prototype.`] };
+  return entry ? { ok: true, entry } : { ok: false, reasons: [`No ${TYPE_LABEL[type]} ${noun} for ${region} is in the loaded GVR outputs.`] };
+}
+
+/**
+ * Why a brief needs a GVR analyst to validate it before delivery. Empty means it can be built
+ * automatically from the loaded GVR report.
+ */
+export function reviewReasons(d: {
+  skill: Skill;
+  type: string;
+  customType: string;
+  region: string;
+  market: string;
+  forecast: string;
+  sources: { client: boolean; urls: boolean; web: boolean };
+}): string[] {
+  const reasons: string[] = [];
+  if (d.sources.client) reasons.push("Uses client documents: an analyst checks their figures against GVR data.");
+  if (d.sources.urls) reasons.push("Uses external web pages: an analyst validates the figures and citations.");
+  const cov = d.type ? coverage(d.skill, d.type, d.region.trim(), d.market.trim(), d.forecast.trim(), d.customType.trim()) : null;
+  if (cov && !cov.ok) {
+    reasons.push(...cov.reasons);
+    if (d.sources.web) reasons.push("Web research would fill the gaps: an analyst validates every external figure.");
+  }
+  return reasons;
 }
 
 /** What can be built, for the brief card's note. */

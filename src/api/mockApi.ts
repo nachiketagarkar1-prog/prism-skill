@@ -27,7 +27,7 @@ type StageDef = [key: string, label: string, detail: string, ms: number];
 
 const CREATE_STAGES: Record<Skill, StageDef[]> = {
   report: [
-    ["brief", "Reading the conversation", "Client, question, focus, region and audience", 900],
+    ["brief", "Reading the conversation", "Client, question, focus and region", 900],
     ["evidence", "Gathering evidence", "GVR report text, uploads and cited research", 1500],
     ["plan", "Planning chapters", "Lens, object, decision and depth → chapter outline", 1200],
     ["render", "Rendering the report", "Spec → paginated PDF, two-pass contents", 1500],
@@ -37,7 +37,7 @@ const CREATE_STAGES: Record<Skill, StageDef[]> = {
     ["deliver", "Delivering", "Versioned PDF and studio", 500],
   ],
   deck: [
-    ["brief", "Settling the brief", "Presentation type, market, geography, years, audience", 900],
+    ["brief", "Settling the brief", "Presentation type, market, geography and years", 900],
     ["evidence", "Gathering evidence", "GVR inputs first, then whitelisted research", 1500],
     ["plan", "Planning the storyline", "Answer first, one message per slide", 1200],
     ["render", "Rendering on the GVR master", "Native shapes and charts, fit warnings cleared", 1500],

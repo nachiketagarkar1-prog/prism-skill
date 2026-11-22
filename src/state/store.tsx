@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { SKILL_NOUN } from "../types";
-import type { Brief, BriefDraft, Skill, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
+import type { AnalystReview, Brief, BriefDraft, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
 import { PrototypeLimitError, VersionConflictError } from "../types";
 import { api, dropSampleClient, initialStages, mockApi, stageDefs } from "../api/mockApi";
-import { coverageSummary, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
-import { detectForecast, detectIntent, type Intent } from "../lib/intent";
+import { reviewReasons, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import { detectCustomType, detectForecast, detectIntent, detectRegion, type Intent } from "../lib/intent";
 import { genericAnswer } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
 import { seedThreads } from "../data/seed";
@@ -115,7 +115,12 @@ const VALID_TYPES = new Set(OUTPUT_TYPES.map((t) => t.id as string));
 function draftFromIntent(intent: Intent, text: string, uploads: string[], prev?: Job, sameOutput = false): BriefDraft {
   const urls = text.match(URL_RX) ?? [];
   // The output type carries over only for "make it a presentation"-style requests about the same output.
-  const type = intent.type && VALID_TYPES.has(intent.type) ? (intent.type as OutputType) : sameOutput && prev ? prev.brief.type : "";
+  // A named type the app doesn't list ("a pricing analysis report") becomes a custom request, not a refusal.
+  const custom = detectCustomType(text);
+  const type: OutputType | "" =
+    intent.type && VALID_TYPES.has(intent.type) ? (intent.type as OutputType) : custom !== undefined ? "custom" : sameOutput && prev ? prev.brief.type : "";
+  const customType = type === "custom" ? (custom ?? (prev?.brief.type === "custom" ? prev.brief.typeLabel : "")) : "";
+  const sources = prev?.brief.sources ?? { gvr: true, client: uploads.length > 0, urls: urls.length > 0, whitelist: true, web: true };
   return {
     skill: intent.skill ?? "report",
     type,
@@ -125,9 +130,10 @@ function draftFromIntent(intent: Intent, text: string, uploads: string[], prev?:
     forecast: detectForecast(text) ?? prev?.brief.forecast ?? GVR_FORECAST,
     includeClient: !!prev?.brief.client,
     client: prev?.brief.client ?? "",
-    audience: prev?.brief.audience ?? "",
+    customType,
     question: "",
-    sources: prev?.brief.sources ?? { gvr: true, client: uploads.length > 0, urls: urls.length > 0, whitelist: true, web: true },
+    sources,
+    analystReview: false,
     files: [...new Set([...(prev?.brief.files ?? []), ...uploads])],
     urls: [...new Set([...(prev?.brief.urls ?? []), ...urls])],
   };
@@ -138,30 +144,18 @@ function briefFromDraft(d: BriefDraft, text: string): Brief {
   return {
     skill: d.skill,
     type,
-    typeLabel: TYPE_LABEL[type],
+    typeLabel: type === "custom" ? d.customType.trim() : TYPE_LABEL[type],
     market: d.market.trim(),
     region: d.region.trim(),
     client: d.includeClient && d.client.trim() ? d.client.trim() : undefined,
-    audience: d.audience.trim() || undefined,
     question: d.question.trim() || text.trim(),
     decision: d.question.trim() || undefined,
     forecast: d.forecast.trim().replace(/\s*[-—–]\s*/, "–"),
-    length: standardLength(d.skill, type),
+    length: type === "custom" ? undefined : standardLength(d.skill, type),
     sources: d.sources,
     files: d.sources.client ? d.files : [],
     urls: d.sources.urls ? d.urls : [],
   };
-}
-
-/** Reply when the prototype can't carry out a request: say why, say what is available, ask what to do. */
-function notBuiltText(reasons: string[], skill: Skill): string {
-  return [
-    "I haven't built this, rather than hand you a different output:",
-    "",
-    ...reasons.map((r) => `- ${r}`),
-    "",
-    `This prototype can build: ${coverageSummary(skill)}. Tell me how you'd like to proceed, for example a different geography, or keep the current version.`,
-  ].join("\n");
 }
 
 function deliveryNote(job: Job): string {
@@ -196,6 +190,7 @@ interface Store {
   sendEditPlan(jobId: string, plan: EditPlan): Promise<void>;
   confirmIntake(threadId: string, msgId: string, draft: BriefDraft): void;
   cancelIntake(threadId: string, msgId: string): void;
+  setReviewStatus(threadId: string, msgId: string, status: AnalystReview["status"]): void;
   toggleDark(): void;
   resetDemo(): void;
   busy: boolean;
@@ -328,14 +323,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (res.kind === "not_built") {
+          // Offer analyst validation for the request instead of a flat refusal.
+          const region = detectRegion(text);
+          const fc = detectForecast(text);
+          const review: AnalystReview = {
+            id: `REV-${uid().slice(0, 6).toUpperCase()}`,
+            brief: {
+              ...target.brief,
+              region: region ?? target.brief.region,
+              forecast: fc && /forecast|period|horizon/i.test(text) ? fc : target.brief.forecast,
+            },
+            reasons: res.reasons,
+            status: "offered",
+            submittedAt: Date.now(),
+            request: text.trim(),
+          };
           const latest = target.versions[target.versions.length - 1].version;
           dispatch({
             t: "patchMessage",
             threadId,
             msgId: asstId,
             patch: {
-              text: notBuiltText(res.reasons, target.skill),
-              footnote: `Nothing was built · ${SKILL_NOUN[target.skill]} ${latest} is unchanged`,
+              text: `This goes beyond what I can build from the loaded GVR report, so I haven't changed the ${SKILL_NOUN[target.skill]}. A GVR analyst can validate it and deliver the update.`,
+              review,
+              footnote: `${SKILL_NOUN[target.skill]} ${latest} is unchanged`,
             },
           });
           return;
@@ -463,10 +474,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // The request that opened the card is the user turn just before it.
       const request = idx > 0 ? (thread!.messages[idx - 1].text ?? "") : "";
       dispatch({ t: "patchMessage", threadId, msgId, patch: { intake: { status: "confirmed", draft } } });
-      startBuild(threadId, briefFromDraft(draft, request));
+      const brief = briefFromDraft(draft, request);
+      // Needs validation (client documents, external web data, data beyond the GVR report, custom scope),
+      // or the client asked for it: send to a GVR analyst instead of building automatically.
+      const reasons = reviewReasons(draft);
+      if (draft.analystReview || reasons.length) {
+        const review: AnalystReview = {
+          id: `REV-${uid().slice(0, 6).toUpperCase()}`,
+          brief,
+          reasons: reasons.length ? reasons : ["You asked for an analyst to validate this before delivery."],
+          status: "submitted",
+          submittedAt: Date.now(),
+        };
+        dispatch({
+          t: "addMessage",
+          threadId,
+          msg: {
+            id: uid(),
+            role: "assistant",
+            ts: Date.now(),
+            text: `I've sent this to a GVR analyst rather than building it automatically. Nothing is delivered until the analyst has validated it; you'll see the ${SKILL_NOUN[brief.skill]} here when it's ready.`,
+            review,
+          },
+        });
+        return;
+      }
+      startBuild(threadId, brief);
     },
     [startBuild],
   );
+
+  const setReviewStatus = useCallback((threadId: string, msgId: string, status: AnalystReview["status"]) => {
+    const m = stateRef.current.threads.find((t) => t.id === threadId)?.messages.find((x) => x.id === msgId);
+    if (m?.review)
+      dispatch({
+        t: "patchMessage",
+        threadId,
+        msgId,
+        patch: { review: { ...m.review, status, submittedAt: status === "submitted" ? Date.now() : m.review.submittedAt } },
+      });
+  }, []);
 
   const cancelIntake = useCallback((threadId: string, msgId: string) => {
     const m = stateRef.current.threads.find((t) => t.id === threadId)?.messages.find((x) => x.id === msgId);
@@ -480,8 +527,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Store>(
-    () => ({ state, activeThread, newChat, openThread, send, openPanel, setPanel, sendEditPlan, confirmIntake, cancelIntake, toggleDark, resetDemo, busy }),
-    [state, activeThread, newChat, openThread, send, openPanel, setPanel, sendEditPlan, confirmIntake, cancelIntake, toggleDark, resetDemo, busy],
+    () => ({
+      state,
+      activeThread,
+      newChat,
+      openThread,
+      send,
+      openPanel,
+      setPanel,
+      sendEditPlan,
+      confirmIntake,
+      cancelIntake,
+      setReviewStatus,
+      toggleDark,
+      resetDemo,
+      busy,
+    }),
+    [
+      state,
+      activeThread,
+      newChat,
+      openThread,
+      send,
+      openPanel,
+      setPanel,
+      sendEditPlan,
+      confirmIntake,
+      cancelIntake,
+      setReviewStatus,
+      toggleDark,
+      resetDemo,
+      busy,
+    ],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -46,6 +46,7 @@ const CARDS: Card[] = [
       report("Competitive Landscape Report"),
       report("GTM Strategy Report"),
       report("Opportunity Assessment Report"),
+      { label: "Other research report…", prompt: `Create a custom research report on ${MARKET}` },
     ],
   },
   {
@@ -59,6 +60,7 @@ const CARDS: Card[] = [
       presentation("Competitive Landscape"),
       presentation("GTM Strategy"),
       presentation("Opportunity Assessment"),
+      { label: "Other research presentation…", prompt: `Create a custom research presentation on ${MARKET}` },
     ],
   },
 ];

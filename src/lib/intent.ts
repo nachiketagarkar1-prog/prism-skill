@@ -27,7 +27,7 @@ const TYPE_RULES: [RegExp, Intent["type"]][] = [
   [/\bexec(utive)?[\s-]*(view|summary|brief)?\b/i, "executive_view"],
   [/\bsnapshot\b/i, "market_snapshot"],
   [/\bopportunit(y|ies)\b|\bwhere (is|are) the growth\b/i, "opportunity_assessment"],
-  [/\bcompetitive|competitor|landscape|benchmark/i, "competitive_landscape"],
+  [/\bcompetitive\b|\bcompetitors?\b|\bcompetition\b/i, "competitive_landscape"],
   [/\bgtm\b|go[\s-]to[\s-]market/i, "gtm_strategy"],
   [/\bstrategy mapping|strategic map/i, "strategy_mapping"],
   [/\bmarket summary\b/i, "market_summary"],
@@ -69,6 +69,25 @@ const GEO_RULES: [RegExp, string][] = [
     "Indonesia",
   ].map((c): [RegExp, string] => [new RegExp(`\\b${c}\\b`, "i"), c]),
 ];
+
+const GENERIC_TYPE_WORDS = /^(market|research|market research|gvr|new|short|full|detailed|client|report|my|our)$/i;
+
+/**
+ * A report type the app doesn't list, named in the request: "Create a pricing analysis report on X" -> "Pricing analysis".
+ * Returns "" for an unnamed custom request ("a custom research report"), undefined when there is none.
+ */
+export function detectCustomType(text: string): string | undefined {
+  const m = text.match(/\b(?:a|an)\s+([a-z][\w&/\- ]{1,60}?)\s+(?:report|presentation|deck|study|analysis)\b/i);
+  if (!m) return undefined;
+  let label = m[1].trim();
+  const isAnalysis = /\banalysis\s*$/i.test(m[0]) && !/analysis$/i.test(label);
+  if (detectType(label)) return undefined;
+  if (/^custom(\s+research)?$/i.test(label)) return "";
+  label = label.replace(/^custom\s+/i, "");
+  if (GENERIC_TYPE_WORDS.test(label)) return undefined;
+  if (isAnalysis) label += " analysis";
+  return label[0].toUpperCase() + label.slice(1);
+}
 
 /** "2025-2030", "2026 to 2032" -> "2025–2030"; "through 2030" / "by 2030" -> "2026–2030". */
 export function detectForecast(text: string): string | undefined {

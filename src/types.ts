@@ -9,7 +9,15 @@ export type ComposerMode = "auto" | "answer" | "report" | "deck";
 export type Region = string;
 
 /** Output types offered for both reports and presentations. */
-export type OutputType = "executive_view" | "market_snapshot" | "competitive_landscape" | "gtm_strategy" | "opportunity_assessment" | "market_summary";
+export type OutputType =
+  | "executive_view"
+  | "market_snapshot"
+  | "competitive_landscape"
+  | "gtm_strategy"
+  | "opportunity_assessment"
+  | "market_summary"
+  /** Any other research output on GVR methodology, described by the client (Brief.typeLabel). */
+  | "custom";
 export type ReportType = OutputType;
 export type DeckType = OutputType;
 
@@ -43,6 +51,20 @@ export interface ChatMessage {
   attachment?: { jobId: string; version: string; kind: "xlsx" };
   /** Brief questions asked before a skill runs; the build starts only once the user confirms. */
   intake?: Intake;
+  /** A request sent to a GVR analyst for validation (instead of an automatic build). */
+  review?: AnalystReview;
+}
+
+export interface AnalystReview {
+  id: string;
+  brief: Brief;
+  /** Why the request needs validation (client documents, external web data, data beyond the GVR report...). */
+  reasons: string[];
+  /** offered: suggested after a chat request the loaded GVR report can't cover; the user decides. */
+  status: "offered" | "submitted" | "withdrawn" | "declined";
+  /** The chat request being reviewed, for follow-ups on an existing output. */
+  request?: string;
+  submittedAt: number;
 }
 
 export interface Intake {
@@ -60,9 +82,12 @@ export interface BriefDraft {
   forecast: string;
   includeClient: boolean;
   client: string;
-  audience: string;
+  /** For type "custom": the report the client describes, e.g. "Pricing analysis". */
+  customType: string;
   question: string;
   sources: SourceChoice;
+  /** Send to a GVR analyst for validation instead of building automatically. */
+  analystReview: boolean;
   files: string[];
   urls: string[];
 }

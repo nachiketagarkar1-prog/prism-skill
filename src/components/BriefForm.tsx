@@ -1,13 +1,11 @@
 import { useRef, useState } from "react";
-import { CheckCircle2, ClipboardList, FileText, Paperclip, Presentation, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, FileText, Paperclip, Presentation, UserCheck, X } from "lucide-react";
 import type { BriefDraft, Intake, SourceChoice } from "../types";
 import { SKILL_NOUN } from "../types";
-import { coverage, coverageSummary, FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import { reviewReasons, FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
 import { useStore } from "../state/store";
 import { cx } from "../lib/util";
 import { sourceList } from "./BuildCard";
-
-const AUDIENCES = ["Leadership", "Strategy team", "Sales & marketing", "Investors"];
 
 const SOURCES: { key: keyof SourceChoice; label: string; hint: string }[] = [
   { key: "gvr", label: "GVR report", hint: "GVR report PDF or ME workbook: primary source for sizes, CAGRs, shares and segments" },
@@ -38,6 +36,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
     .filter(Boolean);
   const missing = [
     !d.type && "output type",
+    d.type === "custom" && !d.customType.trim() && "a description of the report",
     !d.market.trim() && "market",
     !d.region.trim() && "geography",
     !validPeriod(d.forecast) && "forecast period (e.g. 2026–2033)",
@@ -47,14 +46,15 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
     d.sources.urls && !urls.length && "web page links",
   ].filter(Boolean) as string[];
 
-  // Check the answers against what this prototype really has; never swap in a different output.
-  const cov = !missing.length && d.type ? coverage(d.skill, d.type, d.region.trim(), d.market.trim(), d.forecast.trim()) : null;
-  const blocked = cov && !cov.ok ? cov.reasons : [];
+  // Anything beyond the loaded GVR report (client documents, external web data, other scope) goes to an analyst.
+  const reasons = missing.length ? [] : reviewReasons(d);
+  const reviewRequired = reasons.length > 0;
+  const review = reviewRequired || d.analystReview;
 
   const submit = () => {
     setTried(true);
-    if (missing.length || blocked.length) return;
-    confirmIntake(threadId, msgId, { ...d, urls });
+    if (missing.length) return;
+    confirmIntake(threadId, msgId, { ...d, urls, analystReview: review });
   };
 
   return (
@@ -86,7 +86,20 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
                 {d.skill === "report" ? t.report : t.presentation}
               </Pill>
             ))}
+            <Pill on={d.type === "custom"} onClick={() => set({ type: "custom" })}>
+              Other research {noun}
+            </Pill>
           </div>
+          {d.type === "custom" && (
+            <input
+              autoFocus={!d.customType}
+              aria-label={`Describe the ${noun}`}
+              value={d.customType}
+              onChange={(e) => set({ customType: e.target.value })}
+              placeholder="Describe it, e.g. Pricing analysis, Regulatory landscape, Market entry assessment"
+              className={cx(inputCls, "mt-2", tried && !d.customType.trim() && "border-rose-400")}
+            />
+          )}
         </Field>
 
         <Field label="Which market?" required bad={tried && !d.market.trim()} htmlFor={`${msgId}-market`}>
@@ -154,7 +167,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
           </div>
         </Field>
 
-        {d.type && (
+        {d.type && d.type !== "custom" && (
           <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-white/5 dark:text-slate-300">
             <span className="font-medium text-slate-800 dark:text-slate-100">Length:</span> standard for this type, about {standardLength(d.skill, d.type)}. It
             stays fixed; to restructure it or change the number of {d.skill === "deck" ? "slides" : "pages"} later, just ask in chat.
@@ -179,16 +192,6 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
                 className={cx(inputCls, "w-60 py-1.5", tried && !d.client.trim() && "border-rose-400")}
               />
             )}
-          </div>
-        </Field>
-
-        <Field label="Who will read it?" hint="Optional. Sets depth and tone.">
-          <div className="flex flex-wrap gap-1.5">
-            {AUDIENCES.map((a) => (
-              <Pill key={a} on={d.audience === a} onClick={() => set({ audience: d.audience === a ? "" : a })}>
-                {a}
-              </Pill>
-            ))}
           </div>
         </Field>
 
@@ -276,24 +279,46 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
         </Field>
       </div>
 
-      {blocked.length > 0 && (
-        <div className="mx-5 mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[13px] text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
-          <p className="font-semibold">This prototype can't build that, and won't substitute another output:</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5">
-            {blocked.map((r) => (
+      <div className="mx-5 mb-4 rounded-xl border border-slate-200 p-3.5 dark:border-white/10">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={review}
+            disabled={reviewRequired}
+            onClick={() => set({ analystReview: !d.analystReview })}
+            className={cx(
+              "flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium transition",
+              review
+                ? "border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-400/60 dark:bg-amber-400/15 dark:text-amber-100"
+                : "border-slate-200 text-slate-600 hover:border-amber-300 dark:border-white/10 dark:text-slate-300",
+              reviewRequired && "cursor-default",
+            )}
+          >
+            <UserCheck className="h-3.5 w-3.5" /> Review with analyst
+          </button>
+          <span className="text-xs text-slate-500">
+            {reviewRequired
+              ? "Required: this needs validation beyond the loaded GVR report."
+              : review
+                ? "A GVR analyst validates it before delivery."
+                : "Optional. Turn on to have a GVR analyst validate it before delivery."}
+          </span>
+        </div>
+        {reviewRequired && (
+          <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[13px] text-slate-600 dark:text-slate-300">
+            {reasons.map((r) => (
               <li key={r}>{r}</li>
             ))}
           </ul>
-          <p className="mt-2 text-amber-800 dark:text-amber-200">Available here: {coverageSummary(d.skill)}. Change an answer above to continue.</p>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-3 dark:border-white/5 dark:bg-white/[0.02]">
         <span className={cx("text-xs", tried && missing.length ? "text-rose-600" : "text-slate-500")}>
           {missing.length
             ? `Still needed: ${missing.join(", ")}`
-            : blocked.length
-              ? "Not available in this prototype"
+            : review
+              ? "Ready to send to an analyst. Nothing is delivered until it's validated."
               : "Ready. Nothing is built until you confirm."}
         </span>
         <div className="ml-auto flex gap-2">
@@ -307,10 +332,10 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
             onClick={submit}
             className={cx(
               "rounded-lg bg-prism-gradient px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
-              (missing.length > 0 || blocked.length > 0) && "opacity-60",
+              missing.length > 0 && "opacity-60",
             )}
           >
-            Create {noun}
+            {review ? "Send for analyst review" : `Create ${noun}`}
           </button>
         </div>
       </div>
@@ -324,15 +349,15 @@ function BriefSummary({ intake }: { intake: Intake }) {
     return <p className="mt-2 text-sm text-slate-500">Cancelled. Nothing was built. Ask again whenever you're ready.</p>;
   }
   const rows: [string, string][] = [
-    ["Output", `${TYPE_LABEL[d.type] ?? ""} ${SKILL_NOUN[d.skill]}`],
+    ["Output", `${d.type === "custom" ? d.customType : (TYPE_LABEL[d.type] ?? "")} ${SKILL_NOUN[d.skill]}`],
     ["Market", d.market],
     ["Geography", d.region],
     ["Forecast", d.forecast],
-    ...(d.type ? [["Length", `${standardLength(d.skill, d.type)} (standard)`] as [string, string]] : []),
+    ...(d.type && d.type !== "custom" ? [["Length", `${standardLength(d.skill, d.type)} (standard)`] as [string, string]] : []),
     ["Client name", d.includeClient && d.client ? d.client : "Not added"],
-    ...(d.audience ? [["Audience", d.audience] as [string, string]] : []),
     ...(d.question ? [["Decision", d.question] as [string, string]] : []),
     ["Sources", sourceList({ sources: d.sources, files: d.files, urls: d.urls }).join(" · ")],
+    ...(d.analystReview ? [["Analyst review", "Yes"] as [string, string]] : []),
   ];
   return (
     <div className="mt-3 max-w-[760px] rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-[13px] dark:border-emerald-400/20 dark:bg-emerald-400/5">
