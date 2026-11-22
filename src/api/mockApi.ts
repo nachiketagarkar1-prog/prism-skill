@@ -8,7 +8,8 @@
 // Swap `mockApi` for an HTTP implementation of `PrismApi` to wire the real backend.
 import type { Brief, EditPlan, Job, OutputFile, Region, Skill, Stage, StageListener, StartJobRequest, TurnRequest, TurnResponse, Version } from "../types";
 import { PrototypeLimitError, SKILL_NOUN, VersionConflictError } from "../types";
-import { coverage, sampleByKey, standardLength, TYPE_LABEL, type SampleEntry } from "./catalog";
+import { coverage, SAMPLES, sampleByKey, standardLength, TYPE_LABEL, type SampleEntry } from "./catalog";
+import { baseSpecFile, composeReport, gapList } from "../lib/compose";
 import { detectForecast, detectIntent, detectLength, detectRegion, detectType } from "../lib/intent";
 import { answerFromOutput, nextVersion } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
@@ -177,13 +178,34 @@ class MockPrismApi implements PrismApi {
     return this.jobs[id];
   }
 
+  /**
+   * Build a version for a brief. Bundled outputs are used when they match exactly; any other report is
+   * composed from the GVR report spec with every gap highlighted. New presentations need the server renderer.
+   */
+  private async buildVersion(skill: Skill, brief: Brief, version: string, change: string, source: Version["source"]): Promise<Version> {
+    const cov = coverage(skill, brief.type, brief.region, brief.market, brief.forecast, brief.typeLabel);
+    if (cov.ok) return makeVersion(cov.entry, brief, version, change, source);
+    if (skill === "deck") {
+      throw new PrototypeLimitError([
+        "Creating this presentation runs the presentation skill's PowerPoint renderer on the server, which this prototype doesn't include. Reports of any kind can be created here.",
+      ]);
+    }
+    const gaps = gapList(brief);
+    const spec = (await composeReport(brief, gaps)) as { meta: Record<string, unknown>; revision: unknown[] };
+    spec.meta.version = version;
+    // The studio file carries the renderer, fonts and cover; the composed spec replaces its content.
+    const host = SAMPLES.find((e) => e.skill === "report" && `samples/specs/blood_bank_${e.type}_${e.region === "Global" ? "global" : "north_america"}.json` === baseSpecFile(brief))!;
+    const v: Version = { ...makeVersion(host, brief, version, change, source), spec, gaps, factcheck: null };
+    v.files = v.files.filter((f) => f.kind === "studio");
+    return v;
+  }
+
   async startJob(skill: Skill, req: StartJobRequest, brief: Brief, onStage: StageListener) {
-    // Only build what this prototype really has; never substitute another output.
-    const cov = coverage(skill, brief.type, brief.region, brief.market, brief.forecast);
-    if (!cov.ok) throw new PrototypeLimitError(cov.reasons);
+    if (skill === "deck" && !coverage(skill, brief.type, brief.region, brief.market, brief.forecast, brief.typeLabel).ok) {
+      await this.buildVersion(skill, brief, "v1", "", "chat"); // throws with the reason
+    }
     await runStages(CREATE_STAGES[skill], onStage, this.speed);
-    const entry = cov.entry;
-    const version = makeVersion(entry, brief, "v1", `First issue: ${brief.typeLabel}, ${brief.region}`, "chat");
+    const version = await this.buildVersion(skill, brief, "v1", `First issue: ${brief.typeLabel}, ${brief.region}`, "chat");
     const job: Job = {
       id: `${skill === "report" ? "rpt" : "dck"}_${uid()}`,
       skill,
@@ -225,10 +247,12 @@ class MockPrismApi implements PrismApi {
       reasons.push(
         `Resizing to ${len.n} ${job.skill === "deck" ? "slides" : "pages"} means re-planning and re-rendering the ${noun}, which needs the live skill.`,
       );
-    let cov = scopeChanged ? coverage(job.skill, t, region, job.brief.market, newForecast) : null;
-    if (cov && !cov.ok) reasons.push(...cov.reasons);
+    // Reports: any scope change is built (gaps highlighted). Presentations: only bundled ones can be rendered here.
+    const cov = scopeChanged ? coverage(job.skill, t, region, job.brief.market, newForecast) : null;
+    if (cov && !cov.ok && job.skill === "deck")
+      reasons.push("Rendering a presentation for that scope runs the PowerPoint renderer on the server, which this prototype doesn't include.");
     if (!scopeChanged && !len) reasons.push(`Rewriting the ${noun} content (“${last.trim().slice(0, 80)}”) needs the live skill.`);
-    if (reasons.length || !cov?.ok) {
+    if (reasons.length) {
       await sleep(600 * this.speed);
       return { kind: "not_built", reasons };
     }
@@ -244,7 +268,7 @@ class MockPrismApi implements PrismApi {
       pagesOverride: undefined,
     };
     job.title = `${job.brief.market} · ${job.brief.typeLabel}`;
-    const v = makeVersion(cov.entry, job.brief, nextVersion(latest.version), `Chat: “${last.trim().slice(0, 90)}”`, "chat");
+    const v = await this.buildVersion(job.skill, job.brief, nextVersion(latest.version), `Chat: “${last.trim().slice(0, 90)}”`, "chat");
     job.versions.push(v);
     this.persist();
     return { kind: "version", job: { ...job }, version: v };
@@ -254,13 +278,14 @@ class MockPrismApi implements PrismApi {
   async refineJob(jobId: string, brief: Brief, change: string, onStage: StageListener) {
     const job = this.jobs[jobId];
     if (!job) throw new Error(`Unknown job ${jobId}`);
-    const cov = coverage(job.skill, brief.type, brief.region, brief.market, brief.forecast, brief.typeLabel);
-    if (!cov.ok) throw new PrototypeLimitError(cov.reasons);
+    if (job.skill === "deck" && !coverage(job.skill, brief.type, brief.region, brief.market, brief.forecast, brief.typeLabel).ok) {
+      await this.buildVersion(job.skill, brief, "", "", "chat"); // throws with the reason
+    }
     await runStages(UPDATE_STAGES, onStage, this.speed);
     const latest = job.versions[job.versions.length - 1];
+    const v = await this.buildVersion(job.skill, brief, nextVersion(latest.version), change, "chat");
     job.brief = brief;
     job.title = `${brief.market} · ${brief.typeLabel}`;
-    const v = makeVersion(cov.entry, brief, nextVersion(latest.version), change, "chat");
     job.versions.push(v);
     this.persist();
     return { job: { ...job }, version: v };

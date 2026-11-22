@@ -296,30 +296,6 @@ export function coverage(skill: Skill, type: string, region: string, market: str
   return entry ? { ok: true, entry } : { ok: false, reasons: [`No ${TYPE_LABEL[type]} ${noun} for ${region} is in the loaded GVR outputs.`] };
 }
 
-/**
- * Why a brief needs a GVR analyst to validate it before delivery. Empty means it can be built
- * automatically from the loaded GVR report.
- */
-export function reviewReasons(d: {
-  skill: Skill;
-  type: string;
-  customType: string;
-  region: string;
-  market: string;
-  forecast: string;
-  sources: { client: boolean; urls: boolean; web: boolean };
-}): string[] {
-  const reasons: string[] = [];
-  if (d.sources.client) reasons.push("Uses client documents: an analyst checks their figures against GVR data.");
-  if (d.sources.urls) reasons.push("Uses external web pages: an analyst validates the figures and citations.");
-  const cov = d.type ? coverage(d.skill, d.type, d.region.trim(), d.market.trim(), d.forecast.trim(), d.customType.trim()) : null;
-  if (cov && !cov.ok) {
-    reasons.push(...cov.reasons);
-    if (d.sources.web) reasons.push("Web research would fill the gaps: an analyst validates every external figure.");
-  }
-  return reasons;
-}
-
 /** What can be built, for the brief card's note. */
 export function coverageSummary(skill: Skill): string {
   const pool = SAMPLES.filter((s) => s.skill === skill);

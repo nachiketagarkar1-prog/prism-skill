@@ -1,12 +1,12 @@
-import { AlertTriangle, Check, Download, ExternalLink, FileSpreadsheet, FileText, Loader2, MonitorPlay, Presentation, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Download, ExternalLink, FileSpreadsheet, FileText, Loader2, MonitorPlay, UserCheck, Presentation, Sparkles } from "lucide-react";
 import { SKILL_NOUN, type Brief, type BuildState, type OutputFile } from "../types";
 import { useStore } from "../state/store";
 import { cx, formatBytes } from "../lib/util";
 
 const SKILL_NAME = { report: "GVR Report Builder", deck: "GVR Presentation Builder" } as const;
 
-export function BuildCard({ build }: { build: BuildState }) {
-  const { state, openPanel } = useStore();
+export function BuildCard({ build, threadId }: { build: BuildState; threadId?: string }) {
+  const { state, openPanel, requestReview } = useStore();
   const job = build.jobId ? state.jobs[build.jobId] : undefined;
   const version = job?.versions.find((v) => v.version === build.version);
   const done = build.stages.filter((s) => s.status === "done").length;
@@ -129,6 +129,24 @@ export function BuildCard({ build }: { build: BuildState }) {
         <div className="space-y-4 px-5 pb-5 pt-3.5">
           {build.note && (
             <p className="text-[14.5px] leading-relaxed text-slate-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: mdInline(build.note) }} />
+          )}
+          {version.gaps && version.gaps.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[13px] text-amber-950 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+              <div className="font-semibold">Not from the GVR report (highlighted in the {SKILL_NOUN[brief.skill]})</div>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {version.gaps.map((g) => (
+                  <li key={g}>{g}</li>
+                ))}
+              </ul>
+              {threadId && (
+                <button
+                  onClick={() => requestReview(threadId, job.id)}
+                  className="mt-2.5 flex items-center gap-1.5 rounded-full border border-amber-400 bg-white px-3 py-1 text-[13px] font-medium text-amber-900 hover:bg-amber-100 dark:bg-transparent dark:text-amber-100"
+                >
+                  <UserCheck className="h-3.5 w-3.5" /> Send for analyst review
+                </button>
+              )}
+            </div>
           )}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3">
             {version.files.map((f) =>

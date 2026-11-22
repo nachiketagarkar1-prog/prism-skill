@@ -3,8 +3,9 @@ import { SKILL_NOUN } from "../types";
 import type { AnalystReview, Brief, BriefDraft, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
 import { PrototypeLimitError, VersionConflictError } from "../types";
 import { api, dropSampleClient, initialStages, mockApi, stageDefs } from "../api/mockApi";
-import { reviewReasons, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import { GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
 import { missingEssentials, describeChanges } from "../lib/brief";
+import { draftGaps } from "../lib/compose";
 import { nextVersion } from "../lib/answers";
 import { detectCustomType, detectForecast, detectIntent, detectRegion, type Intent } from "../lib/intent";
 import { genericAnswer } from "../lib/answers";
@@ -182,7 +183,12 @@ function briefFromDraft(d: BriefDraft, text: string): Brief {
 function deliveryNote(job: Job): string {
   const v = job.versions[job.versions.length - 1];
   const f = v.files.find((x) => x.kind === "pdf" || x.kind === "pptx");
-  if (!f) return `The studio shows ${v.version} with your edits. The PDF and Excel for ${v.version} are produced when the live skill re-renders it.`;
+  if (!f) {
+    const gaps = v.gaps?.length
+      ? ` ${v.gaps.length} part${v.gaps.length === 1 ? " isn't" : "s aren't"} from the GVR report and ${v.gaps.length === 1 ? "is" : "are"} highlighted in amber.`
+      : "";
+    return `**${job.brief.typeLabel}** ${SKILL_NOUN[job.skill]} on ${job.brief.market}, ${job.brief.region}${job.brief.client ? `, prepared for ${job.brief.client}` : ""}: open the studio to read it.${gaps} Its PDF and Excel are produced by the server render.`;
+  }
   const unit = job.skill === "deck" ? "slides" : "pages";
   const lines = [
     `**${job.brief.typeLabel}** ${SKILL_NOUN[job.skill]} on ${job.brief.market}, ${job.brief.region}: ${f.pages} ${unit}${job.brief.client ? `, prepared for ${job.brief.client}` : ""}.`,
@@ -212,6 +218,7 @@ interface Store {
   confirmIntake(threadId: string, msgId: string, draft: BriefDraft): void;
   cancelIntake(threadId: string, msgId: string): void;
   setReviewStatus(threadId: string, msgId: string, status: AnalystReview["status"]): void;
+  requestReview(threadId: string, jobId: string): void;
   toggleDark(): void;
   resetDemo(): void;
   busy: boolean;
@@ -473,7 +480,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     api
       .startJob(
         brief.skill,
-        { thread_id: threadId, messages: thread ? toApiMessages(thread) : [{ role: "user", text: brief.question, ts: Date.now() }], uploads: brief.files ?? [], type: brief.type, region: brief.region },
+        {
+          thread_id: threadId,
+          messages: thread ? toApiMessages(thread) : [{ role: "user", text: brief.question, ts: Date.now() }],
+          uploads: brief.files ?? [],
+          type: brief.type,
+          region: brief.region,
+        },
         brief,
         (stages) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { stages } }),
       )
@@ -549,8 +562,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const createFromDraft = useCallback(
     (threadId: string, draft: BriefDraft, request: string) => {
       const brief = briefFromDraft(draft, request);
-      const reasons = reviewReasons(draft);
-      if (draft.analystReview || reasons.length) return sendToAnalyst(threadId, brief, reasons);
+      const reasons = draftGaps(draft);
+      // Always create it; an analyst only when the client asks (gaps are highlighted in the output).
+      if (draft.analystReview) return sendToAnalyst(threadId, brief, reasons);
       startBuild(threadId, brief, (job) => offerRefine(threadId, job));
     },
     [startBuild, sendToAnalyst, offerRefine],
@@ -569,7 +583,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const rm = thread!.messages.find((m) => m.id === intake.reviewMsgId);
         if (rm?.review) {
           const brief = briefFromDraft(draft, rm.review.brief.question);
-          const reasons = reviewReasons(draft);
+          const reasons = draftGaps(draft);
           dispatch({
             t: "patchMessage",
             threadId,
@@ -591,8 +605,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           dispatch({ t: "addMessage", threadId, msg: { id: uid(), role: "assistant", ts: Date.now(), text: `Nothing changed, so ${latest} stays as it is.` } });
           return;
         }
-        const reasons = reviewReasons(draft);
-        if (draft.analystReview || reasons.length) return sendToAnalyst(threadId, brief, reasons, `Refine ${latest}: ${changes.join(", ") || "validate"}`);
+        const reasons = draftGaps(draft);
+        if (draft.analystReview) return sendToAnalyst(threadId, brief, reasons, `Refine ${latest}: ${changes.join(", ") || "validate"}`);
         const asstId = uid();
         const build: BuildState = { kind: "update", jobId: job.id, brief, stages: initialStages(stageDefs.update), status: "running" };
         dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), build } });
@@ -632,6 +646,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [createFromDraft, sendToAnalyst],
   );
 
+  /** Client asks for an analyst on a delivered version (e.g. to validate highlighted gaps). */
+  const requestReview = useCallback(
+    (threadId: string, jobId: string) => {
+      const job = stateRef.current.jobs[jobId];
+      if (!job) return;
+      const v = job.versions[job.versions.length - 1];
+      sendToAnalyst(threadId, job.brief, v.gaps?.length ? v.gaps : [], `Validate ${v.version}`);
+    },
+    [sendToAnalyst],
+  );
+
   const setReviewStatus = useCallback((threadId: string, msgId: string, status: AnalystReview["status"]) => {
     const m = stateRef.current.threads.find((t) => t.id === threadId)?.messages.find((x) => x.id === msgId);
     if (m?.review)
@@ -667,6 +692,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       confirmIntake,
       cancelIntake,
       setReviewStatus,
+      requestReview,
       toggleDark,
       resetDemo,
       busy,
@@ -683,6 +709,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       confirmIntake,
       cancelIntake,
       setReviewStatus,
+      requestReview,
       toggleDark,
       resetDemo,
       busy,

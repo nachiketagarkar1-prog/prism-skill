@@ -179,8 +179,10 @@ export interface Version {
   change: string; // revision line
   source: "chat" | "studio";
   files: OutputFile[];
-  /** Report spec after a studio edit plan; the studio renders this version from it. */
+  /** Report spec after a studio edit plan, or composed for a request; the studio renders this version from it. */
   spec?: unknown;
+  /** What in this version is not from the GVR report (highlighted in the report and in chat). */
+  gaps?: string[];
   /** Sample catalog entry backing this version (working model only). */
   sampleKey: string;
   /** Internal only; the client UI shows at most a one-line summary (deck notes). */

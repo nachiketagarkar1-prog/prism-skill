@@ -45,7 +45,7 @@ export function MessageList({ thread, outdent }: { thread: Thread; outdent: bool
             <AssistantAvatar />
             <div className="min-w-0 flex-1 pt-1">
               {m.build ? (
-                <BuildCard build={m.build} />
+                <BuildCard build={m.build} threadId={thread.id} />
               ) : m.text ? (
                 <>
                   <Markdown text={m.text} />

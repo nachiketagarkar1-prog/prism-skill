@@ -18,6 +18,7 @@ import type { EditPlan, Job, Version } from "../types";
 import { sampleByKey } from "../api/catalog";
 import { cx, formatBytes } from "../lib/util";
 import { ExcelPreview } from "./ExcelPreview";
+import { GAP_LABEL } from "../lib/compose";
 
 interface StudioWindow extends Window {
   GVRStudio?: { plan?: () => EditPlan };
@@ -77,6 +78,13 @@ interface StudioPatch {
   version: string;
 }
 
+/** Amber highlight for "Not from the GVR report" callouts wherever the renderer draws them. */
+const GAP_HIGHLIGHT =
+  "<style>.prism-gap{border-left-color:#F59E0B!important;background:#FFF4E0!important}.prism-gap .co-label{color:#B45309!important;font-weight:700}</style>" +
+  "<script>new MutationObserver(function(){document.querySelectorAll('.co-label').forEach(function(l){" +
+  `if(l.textContent.indexOf(${JSON.stringify(GAP_LABEL)})===0&&l.parentElement)l.parentElement.classList.add('prism-gap')})})` +
+  ".observe(document.documentElement,{childList:true,subtree:true});</script>";
+
 function patchStudio(html: string, p: StudioPatch): string | null {
   if (!html.includes("<script>window.SPEC_IN=") || !html.includes(";window.META=")) return null;
   const data = JSON.stringify(p).replace(/</g, "\\u003c");
@@ -85,7 +93,10 @@ function patchStudio(html: string, p: StudioPatch): string | null {
     "if(p.client){s.meta.prepared_for=p.client;s.brief.client=p.client}else{delete s.meta.prepared_for;delete s.brief.client}" +
     "if(p.decision)s.brief.question=p.decision;s.meta.version=p.version;return s}";
   return html
-    .replace("<script>window.SPEC_IN=", `<script>window.__prism=${data};window.__prismPatch=${fn};</script><script>window.SPEC_IN=window.__prismPatch(`)
+    .replace(
+      "<script>window.SPEC_IN=",
+      `${GAP_HIGHLIGHT}<script>window.__prism=${data};window.__prismPatch=${fn};</script><script>window.SPEC_IN=window.__prismPatch(`,
+    )
     .replace(";window.META=", ");window.META=")
     .replace(";window.ASSETS=", ";window.META.version=window.__prism.version;window.ASSETS=");
 }
@@ -188,7 +199,9 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
         </div>
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">{job.title}</div>
-          <div className="truncate text-xs text-slate-500">{sampleByKey(version.sampleKey).subtitle}</div>
+          <div className="truncate text-xs text-slate-500">
+            {version.spec || version.gaps ? `${job.brief.typeLabel}: ${job.brief.region}, ${job.brief.forecast}` : sampleByKey(version.sampleKey).subtitle}
+          </div>
         </div>
         <VersionSelect job={job} value={version.version} onChange={(v) => go({ version: v })} />
         <div className="ml-auto flex items-center gap-1">

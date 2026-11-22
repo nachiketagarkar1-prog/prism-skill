@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 import { CheckCircle2, ClipboardList, FileText, Paperclip, Presentation, UserCheck, X } from "lucide-react";
 import type { BriefDraft, Intake, SourceChoice } from "../types";
 import { SKILL_NOUN } from "../types";
-import { reviewReasons, FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import { FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
 import { useStore } from "../state/store";
 import { missingEssentials } from "../lib/brief";
+import { draftGaps } from "../lib/compose";
 import { nextVersion } from "../lib/answers";
 import { cx } from "../lib/util";
 import { sourceList } from "./BuildCard";
@@ -58,9 +59,10 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
   ].filter(Boolean) as string[];
 
   // Anything beyond the loaded GVR report (client documents, external web data, other scope) goes to an analyst.
-  const reasons = missing.length ? [] : reviewReasons(d);
-  const reviewRequired = reasons.length > 0;
-  const review = reviewRequired || d.analystReview;
+  const reasons = missing.length ? [] : draftGaps({ ...d, urls });
+  // These are created anyway, with the gaps highlighted; an analyst is optional (recommended when there are gaps).
+  const hasGaps = reasons.length > 0;
+  const review = d.analystReview;
 
   const submit = () => {
     setTried(true);
@@ -151,7 +153,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
                       // Quick question with only the geography missing: picking one starts the build.
                       if (quick && askFor.length === 1 && askFor[0] === "region") {
                         const next = { ...d, region: g, urls };
-                        confirmIntake(threadId, msgId, { ...next, analystReview: d.analystReview || reviewReasons(next).length > 0 });
+                        confirmIntake(threadId, msgId, { ...next, analystReview: d.analystReview });
                       }
                     }}
                   >
@@ -317,39 +319,42 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
         )}
       </div>
 
-      {(!quick || reviewRequired) && !forReview && (
+      {(!quick || hasGaps) && !forReview && (
         <>
           <div className="mx-5 mb-4 rounded-xl border border-slate-200 p-3.5 dark:border-white/10">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 aria-pressed={review}
-                disabled={reviewRequired}
                 onClick={() => set({ analystReview: !d.analystReview })}
                 className={cx(
                   "flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium transition",
                   review
                     ? "border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-400/60 dark:bg-amber-400/15 dark:text-amber-100"
                     : "border-slate-200 text-slate-600 hover:border-amber-300 dark:border-white/10 dark:text-slate-300",
-                  reviewRequired && "cursor-default",
                 )}
               >
                 <UserCheck className="h-3.5 w-3.5" /> Review with analyst
               </button>
               <span className="text-xs text-slate-500">
-                {reviewRequired
-                  ? "Required: this needs validation beyond the loaded GVR report."
+                {hasGaps && !review
+                  ? "Recommended: parts of this aren't from the GVR report."
                   : review
                     ? "A GVR analyst validates it before delivery."
                     : "Optional. Turn on to have a GVR analyst validate it before delivery."}
               </span>
             </div>
-            {reviewRequired && (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[13px] text-slate-600 dark:text-slate-300">
-                {reasons.map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
+            {hasGaps && (
+              <>
+                <p className="mt-2 text-[13px] font-medium text-slate-700 dark:text-slate-200">
+                  I'll create it now and highlight what isn't from the GVR report:
+                </p>
+                <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[13px] text-slate-600 dark:text-slate-300">
+                  {reasons.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
         </>
