@@ -7,7 +7,7 @@ export interface Intent {
   /** What the turn should do. */
   action: "answer" | "build" | "change" | "question";
   skill?: Skill;
-  type?: OutputType | "strategy_mapping" | "market_overview";
+  type?: OutputType | "strategy_mapping" | "market_overview" | "gtm_strategy";
   region?: Region;
   market?: string;
   /** True when the skill came from an explicit word (deck, pdf…) or the composer toggle. */
@@ -28,6 +28,7 @@ const TYPE_RULES: [RegExp, Intent["type"]][] = [
   [/\bsnapshot\b/i, "market_snapshot"],
   [/\bopportunit(y|ies)\b|\bwhere (is|are) the growth\b/i, "opportunity_assessment"],
   [/\bcompetitive|competitor|landscape|benchmark/i, "competitive_landscape"],
+  [/\bgtm\b|go[\s-]to[\s-]market/i, "gtm_strategy"],
   [/\bstrategy mapping|strategic map/i, "strategy_mapping"],
   [/\bmarket summary\b/i, "market_summary"],
   [/\boverview\b/i, "market_overview"],

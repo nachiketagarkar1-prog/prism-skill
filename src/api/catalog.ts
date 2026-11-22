@@ -34,6 +34,7 @@ export const TYPE_LABEL: Record<string, string> = {
   competitive_landscape: "Competitive Landscape",
   strategy_mapping: "Strategy Mapping",
   market_overview: "Market Overview",
+  gtm_strategy: "GTM Strategy",
 };
 
 const MARKET = "Blood Bank Serology";
