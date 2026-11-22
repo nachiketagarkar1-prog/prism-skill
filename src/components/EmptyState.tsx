@@ -1,6 +1,7 @@
 import { FileText, MessageCircle, Presentation } from "lucide-react";
 import { PrismLogo } from "./PrismLogo";
 import type { ComposerMode } from "../types";
+import { ModeToggle } from "./Composer";
 
 // Example market for the prompts: the bundled sample outputs cover Blood Bank Serology.
 const MARKET = "the blood bank serology market";
@@ -65,7 +66,15 @@ const CARDS: Card[] = [
   },
 ];
 
-export function EmptyState({ onPick }: { onPick: (text: string, mode: ComposerMode) => void }) {
+export function EmptyState({
+  onPick,
+  mode,
+  setMode,
+}: {
+  onPick: (text: string, mode: ComposerMode) => void;
+  mode: ComposerMode;
+  setMode: (m: ComposerMode) => void;
+}) {
   return (
     <div className="mx-auto flex w-full max-w-[1000px] flex-col items-center px-4 pt-[8vh] md:px-8">
       <PrismLogo className="h-10 w-10" />
@@ -95,6 +104,9 @@ export function EmptyState({ onPick }: { onPick: (text: string, mode: ComposerMo
             </div>
           </div>
         ))}
+      </div>
+      <div className="mt-6 flex justify-center">
+        <ModeToggle mode={mode} setMode={setMode} />
       </div>
     </div>
   );

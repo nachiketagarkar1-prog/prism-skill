@@ -17,11 +17,14 @@ export function Composer({
   setDraft,
   mode,
   setMode,
+  showModes = true,
 }: {
   draft: string;
   setDraft: (s: string) => void;
   mode: ComposerMode;
   setMode: (m: ComposerMode) => void;
+  /** False on the home screen, where the mode switch is shown centred under the cards. */
+  showModes?: boolean;
 }) {
   const { send, busy, activeThread, state } = useStore();
   const [uploads, setUploads] = useState<string[]>([]);
@@ -53,34 +56,12 @@ export function Composer({
 
   return (
     <div className="mx-auto w-full max-w-[1000px] px-4 pb-3 md:px-8">
-      {/* Mode + intent hint */}
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <div
-          className="flex rounded-full border border-slate-200 bg-white p-0.5 text-xs shadow-sm dark:border-white/10 dark:bg-white/5"
-          role="radiogroup"
-          aria-label="Output"
-        >
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              role="radio"
-              aria-checked={mode === m.id}
-              title={m.hint}
-              onClick={() => setMode(m.id)}
-              className={cx(
-                "flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition",
-                mode === m.id ? "bg-prism-gradient text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-white",
-              )}
-            >
-              {m.icon}
-              {m.label}
-            </button>
-          ))}
-        </div>
+      {/* Mode + intent hint (on the home screen the mode switch sits under the cards instead) */}
+      <div className={cx("flex flex-wrap items-center gap-2", (showModes || hint || intent?.action === "question") && "mb-2")}>
+        {showModes && <ModeToggle mode={mode} setMode={setMode} />}
         {hint && (
           <span className="flex items-center gap-1.5 rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300">
-            <Wand2 className="h-3.5 w-3.5" />{" "}
-            {intent?.action === "change" ? "Will update" : intent?.action === "export" ? "Will attach" : "Will build"}: {hint}
+            <Wand2 className="h-3.5 w-3.5" /> {intent?.action === "change" ? "Will update" : intent?.action === "export" ? "Will attach" : "Will build"}: {hint}
             {intent?.action === "export" && " · no new version"}
           </span>
         )}
@@ -150,6 +131,34 @@ export function Composer({
         </div>
       </div>
       <p className="mt-2 text-center text-xs text-slate-400">Enter to send · Shift+Enter for newline · Esc to stop · ⌘N new chat</p>
+    </div>
+  );
+}
+
+/** Auto / Answer / Report / Presentation switch. */
+export function ModeToggle({ mode, setMode }: { mode: ComposerMode; setMode: (m: ComposerMode) => void }) {
+  return (
+    <div
+      className="flex rounded-full border border-slate-200 bg-white p-0.5 text-xs shadow-sm dark:border-white/10 dark:bg-white/5"
+      role="radiogroup"
+      aria-label="Output"
+    >
+      {MODES.map((m) => (
+        <button
+          key={m.id}
+          role="radio"
+          aria-checked={mode === m.id}
+          title={m.hint}
+          onClick={() => setMode(m.id)}
+          className={cx(
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition",
+            mode === m.id ? "bg-prism-gradient text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-white",
+          )}
+        >
+          {m.icon}
+          {m.label}
+        </button>
+      ))}
     </div>
   );
 }

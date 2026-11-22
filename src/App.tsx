@@ -35,6 +35,8 @@ export default function App() {
             <MessageList thread={activeThread} outdent={!state.panel} />
           ) : (
             <EmptyState
+              mode={mode}
+              setMode={setMode}
               onPick={(t, m) => {
                 setDraft(t);
                 setMode(m);
@@ -43,7 +45,7 @@ export default function App() {
             />
           )}
         </div>
-        <Composer draft={draft} setDraft={setDraft} mode={mode} setMode={setMode} />
+        <Composer draft={draft} setDraft={setDraft} mode={mode} setMode={setMode} showModes={!!activeThread?.messages.length} />
       </main>
       {state.panel && <OutputPanel panel={state.panel} />}
     </div>
