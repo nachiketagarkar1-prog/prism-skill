@@ -25,7 +25,7 @@ npm run build      # type-check + production build to dist/
 | Follow-up change ("Change the scope to North America only") | Re-plan stages → **next version** (v2, v3…) with a revision line |
 | "Make it a deck" in a report thread | New deck job that inherits the thread's type and geography |
 | Output panel | **Studio** (the real studio HTML, embedded), **PDF** / **Slides** preview, **Versions** (append-only revision history with downloads), version switcher |
-| **Send to Prism** | Reads the studio's edit plan (`GVRStudio.plan()` for reports, `plan()` for decks), posts it as an edit plan and delivers the next version |
+| **Send to Prism** (in the studio toolbar, in place of *Export edit plan*) | Reads the studio's edit plan (`GVRStudio.plan()` for reports, `plan()` for decks), posts it as an edit plan and delivers the next version |
 | Version conflict | Sending a plan from an older version is rejected with "reload the latest studio". Plans are never merged silently |
 
 Chats and outputs persist in `localStorage`. Use **Reset demo data** in the sidebar to start over.
@@ -59,7 +59,7 @@ Implement `PrismApi` (in `src/api/mockApi.ts`) over HTTP and export it as `api`:
 
 ## Working-model shortcuts to replace for production
 
-- **Studio origin.** Studios load on the app's own origin so "Send to Prism" can read the plan directly. The guides require an **isolated origin**, so switch to `postMessage` between the studio and the app.
+- **Studio origin and Send to Prism button.** Studios load on the app's own origin so the app can replace the studio's *Export edit plan* button with *Send to Prism* and read the plan directly. For production, add the button to the studio templates (`studio_template.html`, `studio/template.html`). The guides require an **isolated origin**, so switch to `postMessage` between the studio and the app.
 - **Studio version label.** The sample studios show their own embedded version label (for example "v3 · working copy"). The panel uses the platform version as `base_version`.
 - **Sample-based outputs.** Every new version reuses the closest bundled sample file under a versioned display name. No sample exists for strategy mapping or market overview, so a fallback sample is used and the delivery note says so.
 - **Fact-check visibility.** The client never sees fact-check detail. Deck notes carry only the one-line summary. Counts are shown only where the guides published them.

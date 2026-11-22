@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, Download, ExternalLink, FileText, History, Maximize2, Minimize2, MonitorPlay, Presentation, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, ChevronDown, Download, ExternalLink, FileText, History, Maximize2, Minimize2, MonitorPlay, Presentation, X } from "lucide-react";
 import { useStore, type PanelState } from "../state/store";
 import type { EditPlan, Job, Version } from "../types";
 import { sampleByKey } from "../api/catalog";
@@ -23,6 +23,34 @@ function readPlan(frame: HTMLIFrameElement | null): EditPlan | null {
   return null;
 }
 
+const SEND_LABEL = "Send to Prism";
+
+/**
+ * Turn the studio's own "Export edit plan" button into "Send to Prism", so the action lives
+ * inside the studio. Cloning the node drops the studio's export handler.
+ * Working model only: needs a same-origin studio. In production the studio template should
+ * ship this button itself and post the plan to the parent (postMessage) or to the backend.
+ */
+function installSendButton(frame: HTMLIFrameElement | null, onClick: () => void): HTMLButtonElement | null {
+  try {
+    const doc = frame?.contentDocument;
+    const old = doc?.getElementById("exportBtn");
+    if (!doc || !old) return null;
+    const btn = old.cloneNode(false) as HTMLButtonElement;
+    btn.textContent = SEND_LABEL;
+    btn.title = "Post this studio's edit plan to Prism; it builds the next version";
+    btn.style.background = "linear-gradient(90deg,#7c5cff,#5b8cff 50%,#22d3ee)";
+    btn.style.borderColor = "transparent";
+    btn.style.color = "#fff";
+    btn.addEventListener("click", onClick);
+    old.replaceWith(btn);
+    return btn;
+  } catch (e) {
+    console.warn("Could not install Send to Prism in the studio", e);
+    return null;
+  }
+}
+
 export function OutputPanel({ panel }: { panel: PanelState }) {
   const { state, setPanel, sendEditPlan } = useStore();
   const job = state.jobs[panel.jobId];
@@ -30,6 +58,18 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
   const [wide, setWide] = useState(false);
   const [notice, setNotice] = useState<{ plan: EditPlan; ops: number } | null>(null);
   const [sending, setSending] = useState(false);
+  const sendRef = useRef<() => void>(() => {});
+  const studioBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Mirror the sending state onto the in-studio button.
+  useEffect(() => {
+    const btn = studioBtnRef.current;
+    if (!btn) return;
+    btn.disabled = sending;
+    btn.textContent = sending ? "Sending…" : SEND_LABEL;
+    btn.style.opacity = sending ? "0.6" : "";
+  }, [sending]);
+
   if (!job) return null;
 
   const version = job.versions.find((v) => v.version === panel.version) ?? job.versions[job.versions.length - 1];
@@ -55,6 +95,7 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
     if (ops === 0) setNotice({ plan, ops });
     else void doSend(plan);
   };
+  sendRef.current = onSend;
 
   return (
     <section
@@ -76,14 +117,6 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
         </div>
         <VersionSelect job={job} value={version.version} onChange={(v) => go({ version: v })} />
         <div className="ml-auto flex items-center gap-1">
-          <button
-            onClick={onSend}
-            disabled={sending || panel.tab !== "studio"}
-            title={panel.tab !== "studio" ? "Open the Studio tab to send its edits" : "Post the studio's edit plan; Prism builds the next version"}
-            className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-prism-gradient px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition enabled:hover:brightness-105 disabled:opacity-50"
-          >
-            <Send className="h-3.5 w-3.5" /> Send to Prism
-          </button>
           <IconBtn label={wide ? "Narrow" : "Widen"} onClick={() => setWide(!wide)} className="hidden lg:grid">
             {wide ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </IconBtn>
@@ -154,6 +187,9 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
             src={studio.url}
             title={`${job.title} studio ${version.version}`}
             className="h-full w-full border-0 bg-white"
+            onLoad={() => {
+              studioBtnRef.current = installSendButton(frameRef.current, () => sendRef.current());
+            }}
             // Working model: same origin so "Send to Prism" can read the studio's edit plan.
             // In production, serve studios from an isolated origin and use postMessage instead.
             sandbox="allow-scripts allow-same-origin allow-downloads allow-modals allow-popups allow-forms"
