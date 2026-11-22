@@ -53,7 +53,7 @@ const CARDS: Card[] = [
     desc: "An editable PowerPoint on the GVR master template plus a presentation studio.",
     mode: "deck",
     options: [
-      presentation("Market Executive"),
+      presentation("Market Executive View"),
       presentation("Market Snapshot"),
       presentation("Competitive Landscape"),
       presentation("GTM Strategy"),
