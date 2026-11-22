@@ -8,8 +8,8 @@
 // Swap `mockApi` for an HTTP implementation of `PrismApi` to wire the real backend.
 import type { Brief, EditPlan, Job, OutputFile, Region, Skill, Stage, StageListener, StartJobRequest, TurnRequest, TurnResponse, Version } from "../types";
 import { VersionConflictError } from "../types";
-import { pickSample, sampleByKey, TYPE_LABEL, type SampleEntry } from "./catalog";
-import { detectIntent, detectRegion, detectType } from "../lib/intent";
+import { pickSample, sampleByKey, standardLength, TYPE_LABEL, type SampleEntry } from "./catalog";
+import { detectForecast, detectIntent, detectLength, detectRegion, detectType } from "../lib/intent";
 import { answerFromOutput, nextVersion } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
 
@@ -113,7 +113,7 @@ function filesFor(entry: SampleEntry, version: string, brief: Brief): OutputFile
       name: `${stem}_${version}.${ext}`,
       url: entry.primary.url,
       bytes: entry.primary.bytes,
-      pages: entry.primary.pages,
+      pages: brief.pagesOverride ?? entry.primary.pages,
       thumb: entry.thumb,
     },
     { kind: "studio", name: `${stem}_${version}_studio.html`, url: entry.studio.url },
@@ -130,7 +130,12 @@ function filesFor(entry: SampleEntry, version: string, brief: Brief): OutputFile
 
 function makeVersion(entry: SampleEntry, brief: Brief, version: string, change: string, source: Version["source"]): Version {
   // Published fact-check counts belong to the sample; show them only when the request matches it.
-  const matches = entry.type === brief.type && entry.region === brief.region && /blood bank serology/i.test(brief.market);
+  const matches =
+    entry.type === brief.type &&
+    entry.region === brief.region &&
+    /blood bank serology/i.test(brief.market) &&
+    brief.forecast === "2026–2033" &&
+    !brief.pagesOverride;
   return { version, date: today(), change, source, files: filesFor(entry, version, brief), sampleKey: entry.key, factcheck: matches ? entry.factcheck : null };
 }
 
@@ -189,9 +194,17 @@ class MockPrismApi implements PrismApi {
       detected && detected in TYPE_LABEL && detected !== "strategy_mapping" && detected !== "market_overview" ? (detected as Brief["type"]) : job.brief.type;
     const { entry } = pickSample(job.skill, t, region);
     if (t !== job.brief.type || region !== job.brief.region) {
-      job.brief = { ...job.brief, type: t, typeLabel: TYPE_LABEL[t], region };
+      job.brief = { ...job.brief, type: t, typeLabel: TYPE_LABEL[t], region, length: standardLength(job.skill, t), pagesOverride: undefined };
       job.title = `${job.brief.market} · ${job.brief.typeLabel}`;
     }
+    // Length stays fixed until the client asks; then the requested count is used.
+    const len = detectLength(last);
+    if (len) {
+      const unit = job.skill === "deck" ? "slides" : "pages";
+      job.brief = { ...job.brief, length: `${len.n} ${unit}`, pagesOverride: len.n };
+    }
+    const fc = detectForecast(last);
+    if (fc && /\b(forecast|period|horizon|outlook)\b/i.test(last)) job.brief = { ...job.brief, forecast: fc };
     const v = makeVersion(entry, job.brief, nextVersion(latest.version), `Chat: “${last.trim().slice(0, 90)}”`, "chat");
     job.versions.push(v);
     this.persist();

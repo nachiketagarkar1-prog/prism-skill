@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { CheckCircle2, ClipboardList, FileText, Paperclip, Presentation, X } from "lucide-react";
 import type { BriefDraft, Intake, SourceChoice } from "../types";
 import { SKILL_NOUN } from "../types";
-import { GEOGRAPHIES, OUTPUT_TYPES, TYPE_LABEL } from "../api/catalog";
+import { FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
 import { useStore } from "../state/store";
 import { cx } from "../lib/util";
 import { sourceList } from "./BuildCard";
@@ -22,6 +22,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
   const { confirmIntake, cancelIntake } = useStore();
   const [d, setD] = useState<BriefDraft>(intake.draft);
   const [otherGeo, setOtherGeo] = useState(GEOGRAPHIES.includes(intake.draft.region) || !intake.draft.region ? "" : intake.draft.region);
+  const [otherFc, setOtherFc] = useState(FORECASTS.includes(intake.draft.forecast) ? "" : intake.draft.forecast);
   const [urlText, setUrlText] = useState(intake.draft.urls.join("\n"));
   const [tried, setTried] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -39,6 +40,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
     !d.type && "output type",
     !d.market.trim() && "market",
     !d.region.trim() && "geography",
+    !validPeriod(d.forecast) && "forecast period (e.g. 2026–2033)",
     d.includeClient && !d.client.trim() && "client name",
     !Object.values(d.sources).some(Boolean) && "at least one source",
     d.sources.client && !d.files.length && "client documents to attach",
@@ -119,6 +121,41 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
             />
           </div>
         </Field>
+
+        <Field label="Which forecast period?" required bad={tried && !validPeriod(d.forecast)} hint="GVR reports forecast 2026–2033 from a 2025 base year.">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {FORECASTS.map((p) => (
+              <Pill
+                key={p}
+                on={d.forecast === p}
+                onClick={() => {
+                  setOtherFc("");
+                  set({ forecast: p });
+                }}
+              >
+                {p}
+                {p === GVR_FORECAST && <span className="ml-1 text-[11px] text-slate-400">GVR standard</span>}
+              </Pill>
+            ))}
+            <input
+              aria-label="Other forecast period"
+              value={otherFc}
+              onChange={(e) => {
+                setOtherFc(e.target.value);
+                set({ forecast: e.target.value });
+              }}
+              placeholder="Other, e.g. 2025–2032"
+              className={cx(inputCls, "w-44 py-1.5")}
+            />
+          </div>
+        </Field>
+
+        {d.type && (
+          <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-white/5 dark:text-slate-300">
+            <span className="font-medium text-slate-800 dark:text-slate-100">Length:</span> standard for this type, about {standardLength(d.skill, d.type)}. It
+            stays fixed; to restructure it or change the number of {d.skill === "deck" ? "slides" : "pages"} later, just ask in chat.
+          </div>
+        )}
 
         <Field label="Add a client name to the cover?" hint="Shown as “Prepared for …” on the inside cover. No client logos or co-branding.">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -270,6 +307,8 @@ function BriefSummary({ intake }: { intake: Intake }) {
     ["Output", `${TYPE_LABEL[d.type] ?? ""} ${SKILL_NOUN[d.skill]}`],
     ["Market", d.market],
     ["Geography", d.region],
+    ["Forecast", d.forecast],
+    ...(d.type ? [["Length", `${standardLength(d.skill, d.type)} (standard)`] as [string, string]] : []),
     ["Prepared for", d.includeClient && d.client ? d.client : "No client name"],
     ...(d.audience ? [["Audience", d.audience] as [string, string]] : []),
     ...(d.question ? [["Decision", d.question] as [string, string]] : []),
@@ -290,6 +329,12 @@ function BriefSummary({ intake }: { intake: Intake }) {
       </dl>
     </div>
   );
+}
+
+/** "2026–2033" or "2025-2032", with the end after the start. */
+function validPeriod(p: string) {
+  const m = p.trim().match(/^(20\d\d)\s*[-–—]\s*(20\d\d)$/);
+  return !!m && +m[2] > +m[1];
 }
 
 const inputCls =

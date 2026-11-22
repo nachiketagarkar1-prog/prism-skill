@@ -19,7 +19,7 @@ const REPORT_RX = /\b(report|pdf|document|study|write-?up)\b/i;
 const BUILD_RX = /\b(build|create|make|generate|prepare|draft|produce|put together|turn (this|it) into)\b/i;
 const EXCEL_RX = /\b(excel|xlsx|spreadsheet|workbook)\b|\bexport (the )?(data|numbers|figures|tables|charts)\b/i;
 const CHANGE_RX =
-  /\b(change|update|add|remove|drop|rename|retitle|move|replace|include|exclude|focus|only|switch|swap|shorten|expand|rebuild|redo|make (it|this|slide|section|the)|convert|hide|instead)\b/i;
+  /\b(change|update|add|remove|drop|rename|retitle|move|replace|include|exclude|focus|only|switch|swap|shorten|shorter|longer|condense|trim|restructure|reorgani[sz]e|fewer|expand|rebuild|redo|make (it|this|slide|section|the)|convert|hide|instead)\b/i;
 const NA_ABBR_RX = /\bNA\b/; // case-sensitive
 const GLOBAL_RX = /\b(global|worldwide|all regions)\b/i;
 
@@ -49,10 +49,44 @@ const GEO_RULES: [RegExp, string][] = [
   [/\b(united states|usa|u\.s\.a?\.?)(?=\W|$)/i, "United States"],
   [/\bUS\b/, "United States"],
   [/\b(united kingdom|u\.k\.|britain)\b|\bUK\b/, "United Kingdom"],
-  ...["Canada", "Mexico", "Brazil", "Germany", "France", "Italy", "Spain", "China", "India", "Japan", "South Korea", "Australia", "Saudi Arabia", "UAE", "South Africa", "Oman", "Indonesia"].map(
-    (c): [RegExp, string] => [new RegExp(`\\b${c}\\b`, "i"), c],
-  ),
+  ...[
+    "Canada",
+    "Mexico",
+    "Brazil",
+    "Germany",
+    "France",
+    "Italy",
+    "Spain",
+    "China",
+    "India",
+    "Japan",
+    "South Korea",
+    "Australia",
+    "Saudi Arabia",
+    "UAE",
+    "South Africa",
+    "Oman",
+    "Indonesia",
+  ].map((c): [RegExp, string] => [new RegExp(`\\b${c}\\b`, "i"), c]),
 ];
+
+/** "2025-2030", "2026 to 2032" -> "2025–2030"; "through 2030" / "by 2030" -> "2026–2030". */
+export function detectForecast(text: string): string | undefined {
+  const range = text.match(/\b(20\d\d)\s*(?:-|–|—|to)\s*(20\d\d)\b/i);
+  if (range && +range[2] > +range[1]) return `${range[1]}–${range[2]}`;
+  const until = text.match(/\b(?:to|through|till|until|by)\s+(20\d\d)\b/i);
+  if (until && +until[1] > 2026) return `2026–${until[1]}`;
+  return undefined;
+}
+
+const FORECAST_WORD_RX = /\b(forecast|period|horizon|outlook to)\b/i;
+
+/** "make it 20 slides" -> {n: 20, unit: "slides"}. */
+export function detectLength(text: string): { n: number; unit: "slides" | "pages" } | undefined {
+  const m = text.match(/\b(\d{1,3})\s*(slides?|pages?)\b/i);
+  if (!m) return undefined;
+  return { n: +m[1], unit: /slide/i.test(m[2]) ? "slides" : "pages" };
+}
 
 export function detectRegion(text: string): Region | undefined {
   for (const [rx, name] of GEO_RULES) if (rx.test(text)) return name;
@@ -111,8 +145,12 @@ export function detectIntent(text: string, mode: ComposerMode, hasJob: boolean):
   // Every version already carries its Excel export, so asking for it never rebuilds.
   // ("Build a North America deck with the Excel" is still a build: it names a new type or scope.)
   if (EXCEL_RX.test(text) && !(skill && build && (type || region))) return { action: "export", skill, region, market, explicitSkill };
+  // "Make it 20 slides" resizes the existing output; it is not a request for a new one.
+  if (detectLength(text) && !type && !region) return { action: "change", skill, type, region, market, explicitSkill };
   if (skill && build) return { action: "build", skill, type, region, market, explicitSkill };
-  if (CHANGE_RX.test(text) || (build && (type || region))) return { action: "change", skill, type, region, market, explicitSkill };
+  // A stated forecast period or page/slide count on an existing output is a change, even without a verb.
+  if (CHANGE_RX.test(text) || (FORECAST_WORD_RX.test(text) && detectForecast(text)) || detectLength(text) || (build && (type || region)))
+    return { action: "change", skill, type, region, market, explicitSkill };
   return { action: "question", skill, type, region, market, explicitSkill };
 }
 

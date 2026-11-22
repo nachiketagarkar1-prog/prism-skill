@@ -230,6 +230,37 @@ export const OUTPUT_TYPES: { id: OutputType; report: string; presentation: strin
   { id: "opportunity_assessment", report: "Opportunity Assessment Report", presentation: "Opportunity Assessment" },
 ];
 
+/**
+ * Standard length per output type, from the skills' planners (report-planner.md, deck-types.md).
+ * Fixed at build time; it changes only when the client asks to restructure or resize in chat.
+ */
+const STANDARD_LENGTH: Record<Skill, Record<string, string>> = {
+  report: {
+    executive_view: "10–11 pages",
+    market_snapshot: "9–10 pages",
+    competitive_landscape: "18–24 pages",
+    gtm_strategy: "15–22 pages",
+    opportunity_assessment: "15–19 pages",
+    market_summary: "25–35 pages",
+  },
+  deck: {
+    executive_view: "8–15 slides",
+    market_snapshot: "6–10 slides",
+    competitive_landscape: "12–20 slides",
+    gtm_strategy: "30–60 slides",
+    opportunity_assessment: "16 slides or more",
+    market_summary: "25–35 slides",
+  },
+};
+
+export function standardLength(skill: Skill, type: string): string {
+  return STANDARD_LENGTH[skill][type] ?? "";
+}
+
+/** Forecast periods offered in the brief card; GVR's standard first. Any other period can be typed in. */
+export const FORECASTS = ["2026–2033", "2026–2030", "2026–2035"];
+export const GVR_FORECAST = "2026–2033";
+
 /** Geographies offered in the brief card; any other country or region can be typed in. */
 export const GEOGRAPHIES = ["Global", "North America", "Europe", "Asia Pacific", "Latin America", "Middle East & Africa"];
 

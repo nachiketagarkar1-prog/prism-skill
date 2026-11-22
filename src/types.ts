@@ -56,6 +56,8 @@ export interface BriefDraft {
   type: OutputType | "";
   market: string;
   region: string;
+  /** Forecast period, e.g. "2026–2033". */
+  forecast: string;
   includeClient: boolean;
   client: string;
   audience: string;
@@ -97,6 +99,10 @@ export interface Brief {
   client?: string;
   question: string;
   forecast: string;
+  /** Length as delivered: the type's standard length until the client asks to change it in chat. */
+  length?: string;
+  /** Page or slide count the client asked for in chat, if any. */
+  pagesOverride?: number;
   audience?: string;
   /** Evidence the user allowed, plus the client files and URLs given. Optional for builds made before the brief card. */
   sources?: SourceChoice;

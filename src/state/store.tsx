@@ -3,8 +3,8 @@ import { SKILL_NOUN } from "../types";
 import type { Brief, BriefDraft, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
 import { VersionConflictError } from "../types";
 import { api, initialStages, stageDefs } from "../api/mockApi";
-import { OUTPUT_TYPES, TYPE_LABEL } from "../api/catalog";
-import { detectIntent, type Intent } from "../lib/intent";
+import { GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import { detectForecast, detectIntent, type Intent } from "../lib/intent";
 import { genericAnswer } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
 import { seedThreads } from "../data/seed";
@@ -121,6 +121,8 @@ function draftFromIntent(intent: Intent, text: string, uploads: string[], prev?:
     type,
     market: intent.market ?? prev?.brief.market ?? "",
     region: intent.region ?? prev?.brief.region ?? "",
+    // GVR's standard period is pre-selected (it is what GVR data covers); a period in the message wins.
+    forecast: detectForecast(text) ?? prev?.brief.forecast ?? GVR_FORECAST,
     includeClient: !!prev?.brief.client,
     client: prev?.brief.client ?? "",
     audience: prev?.brief.audience ?? "",
@@ -142,7 +144,8 @@ function briefFromDraft(d: BriefDraft, text: string): Brief {
     client: d.includeClient && d.client.trim() ? d.client.trim() : undefined,
     audience: d.audience.trim() || undefined,
     question: d.question.trim() || text.trim(),
-    forecast: "2026–2033",
+    forecast: d.forecast.trim().replace(/\s*[-—–]\s*/, "–"),
+    length: standardLength(d.skill, type),
     sources: d.sources,
     files: d.sources.client ? d.files : [],
     urls: d.sources.urls ? d.urls : [],

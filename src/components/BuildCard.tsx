@@ -63,6 +63,7 @@ export function BuildCard({ build }: { build: BuildState }) {
         <Chip label="Market" value={brief.market} />
         <Chip label="Geography" value={brief.region} />
         <Chip label="Forecast" value={brief.forecast} />
+        {brief.length && <Chip label="Length" value={brief.length} />}
         {brief.client && <Chip label="Prepared for" value={brief.client} />}
         {brief.audience && <Chip label="Audience" value={brief.audience} />}
       </div>
