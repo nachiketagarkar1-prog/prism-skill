@@ -20,10 +20,10 @@ npm run build      # type-check + production build to dist/
 | Flow | What happens |
 |---|---|
 | Ask a question (no output yet) | Mocked grounded answer |
-| "Build an executive view deck…" / "…report for North America" | The skill is detected (or chosen with the **Auto / Answer / Report / Presentation** toggle). A live hint shows what will be built. A build card shows the brief and runs the 7 stages, then delivers a 2–4 line note, the PDF/PPTX card and the studio card |
+| "Create an opportunity assessment report…" / "…presentation on the dietary supplements market in Europe" | The skill is detected (or chosen with the **Auto / Answer / Report / Presentation** toggle). **Nothing is built yet:** a brief card asks for output type, market and geography (required), whether to add a client name to the cover (off by default), audience, the decision it should support, and which sources to use (GVR report, client documents with attachments, specific web pages, whitelisted sources, cited web research). Fields the message already answered are pre-filled. On **Create**, the build card runs the stages and delivers the note, PDF/PPTX, studio and Excel |
 | Follow-up question ("Which region grows fastest?") | Answered from the latest output with § / slide references. **No new version** |
 | Follow-up change ("Change the scope to North America only") | Re-plan stages → **next version** (v2, v3…) with a revision line |
-| "Make it a deck" in a report thread | New deck job that inherits the thread's type and geography |
+| "Make it a presentation" in a report thread | Opens the brief card pre-filled from the report (type, market, geography, client, sources) |
 | Excel export | Every version ships `<name>_vN_data.xlsx` with all tables, charts and KPIs (see `skills/README.md`). It appears as a third card and as an **Excel** tab with a sheet-by-sheet preview. Asking "can I get the Excel?" attaches it without a new version |
 | Output panel | **Studio** (the real studio HTML, embedded), **PDF** / **Slides** preview, **Versions** (append-only revision history with downloads), version switcher |
 | **Send to Prism** (in the studio toolbar, in place of *Export edit plan*) | Reads the studio's edit plan (`GVRStudio.plan()` for reports, `plan()` for decks), posts it as an edit plan and delivers the next version |
@@ -62,6 +62,6 @@ Implement `PrismApi` (in `src/api/mockApi.ts`) over HTTP and export it as `api`:
 
 - **Studio origin and Send to Prism button.** Studios load on the app's own origin so the app can replace the studio's *Export edit plan* button with *Send to Prism* and read the plan directly. For production, add the button to the studio templates (`studio_template.html`, `studio/template.html`). The guides require an **isolated origin**, so switch to `postMessage` between the studio and the app.
 - **Studio version label.** The sample studios show their own embedded version label (for example "v3 · working copy"). The panel uses the platform version as `base_version`.
-- **Sample-based outputs.** Every new version reuses the closest bundled sample file under a versioned display name. No sample exists for strategy mapping or market overview, so a fallback sample is used and the delivery note says so.
+- **Sample-based outputs.** Titles, file names and the brief follow what the user asked for, but the file contents are the closest bundled Blood Bank Serology sample (including that sample's "Prepared for Northwind Diagnostics (sample client)" cover). Fact-check counts are shown only when the request matches the sample exactly.
 - **Fact-check visibility.** The client never sees fact-check detail. Deck notes carry only the one-line summary. Counts are shown only where the guides published them.
 - **Ask Prism AI inside the studios** works offline, as built. Its model calls must go through `POST /{id}/ask`.

@@ -89,21 +89,37 @@ async function runStages(defs: StageDef[], onStage: StageListener, speed: number
 
 const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-function filesFor(entry: SampleEntry, version: string): OutputFile[] {
+/** "Blood Bank Serology" -> "BloodBankSerology"; keeps capitals such as "GTM". */
+const pascal = (s: string) =>
+  s
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join("");
+
+/** File stem from what the user asked for, in the skills' naming styles. */
+function baseName(brief: Brief): string {
+  return brief.skill === "report"
+    ? `${pascal(brief.market)}_${pascal(brief.typeLabel)}_${pascal(brief.region)}`
+    : `GVR_${pascal(brief.market)}_${brief.typeLabel.split(/\s+/).map(pascal).join("_")}${brief.region === "Global" ? "" : "_" + pascal(brief.region)}`;
+}
+
+function filesFor(entry: SampleEntry, version: string, brief: Brief): OutputFile[] {
   const ext = entry.skill === "report" ? "pdf" : "pptx";
+  const stem = baseName(brief);
   return [
     {
       kind: ext,
-      name: `${entry.baseName}_${version}.${ext}`,
+      name: `${stem}_${version}.${ext}`,
       url: entry.primary.url,
       bytes: entry.primary.bytes,
       pages: entry.primary.pages,
       thumb: entry.thumb,
     },
-    { kind: "studio", name: `${entry.baseName}_${version}_studio.html`, url: entry.studio.url },
+    { kind: "studio", name: `${stem}_${version}_studio.html`, url: entry.studio.url },
     {
       kind: "xlsx",
-      name: `${entry.baseName}_${version}_data.xlsx`,
+      name: `${stem}_${version}_data.xlsx`,
       url: entry.data.url,
       bytes: entry.data.bytes,
       sheets: entry.data.sheets,
@@ -112,8 +128,10 @@ function filesFor(entry: SampleEntry, version: string): OutputFile[] {
   ];
 }
 
-function makeVersion(entry: SampleEntry, version: string, change: string, source: Version["source"]): Version {
-  return { version, date: today(), change, source, files: filesFor(entry, version), sampleKey: entry.key, factcheck: entry.factcheck };
+function makeVersion(entry: SampleEntry, brief: Brief, version: string, change: string, source: Version["source"]): Version {
+  // Published fact-check counts belong to the sample; show them only when the request matches it.
+  const matches = entry.type === brief.type && entry.region === brief.region && /blood bank serology/i.test(brief.market);
+  return { version, date: today(), change, source, files: filesFor(entry, version, brief), sampleKey: entry.key, factcheck: matches ? entry.factcheck : null };
 }
 
 /* ---------- mock implementation ---------- */
@@ -136,7 +154,7 @@ class MockPrismApi implements PrismApi {
   async startJob(skill: Skill, req: StartJobRequest, brief: Brief, onStage: StageListener) {
     await runStages(CREATE_STAGES[skill], onStage, this.speed);
     const { entry } = pickSample(skill, req.type, req.region ?? "Global");
-    const version = makeVersion(entry, "v1", `First issue: ${TYPE_LABEL[brief.type] ?? brief.typeLabel}, ${brief.region}`, "chat");
+    const version = makeVersion(entry, brief, "v1", `First issue: ${brief.typeLabel}, ${brief.region}`, "chat");
     const job: Job = {
       id: `${skill === "report" ? "rpt" : "dck"}_${uid()}`,
       skill,
@@ -164,16 +182,17 @@ class MockPrismApi implements PrismApi {
     }
 
     await runStages(UPDATE_STAGES, onStage, this.speed);
-    // A scope or type change re-plans onto a different sample where one exists.
-    const prev = sampleByKey(latest.sampleKey);
-    const region: Region = detectRegion(last) ?? prev.region;
-    const t = detectType(last) ?? prev.type;
+    // A scope or type change in chat updates the brief; the working model swaps in the closest sample file.
+    const region: Region = detectRegion(last) ?? job.brief.region;
+    const detected = detectType(last);
+    const t =
+      detected && detected in TYPE_LABEL && detected !== "strategy_mapping" && detected !== "market_overview" ? (detected as Brief["type"]) : job.brief.type;
     const { entry } = pickSample(job.skill, t, region);
-    if (entry.type !== job.brief.type || region !== job.brief.region) {
-      job.brief = { ...job.brief, type: entry.type, typeLabel: TYPE_LABEL[entry.type], region };
+    if (t !== job.brief.type || region !== job.brief.region) {
+      job.brief = { ...job.brief, type: t, typeLabel: TYPE_LABEL[t], region };
       job.title = `${job.brief.market} · ${job.brief.typeLabel}`;
     }
-    const v = makeVersion(entry, nextVersion(latest.version), `Chat: “${last.trim().slice(0, 90)}”`, "chat");
+    const v = makeVersion(entry, job.brief, nextVersion(latest.version), `Chat: “${last.trim().slice(0, 90)}”`, "chat");
     job.versions.push(v);
     this.persist();
     return { kind: "version", job: { ...job }, version: v };
@@ -196,7 +215,7 @@ class MockPrismApi implements PrismApi {
     const comments = Array.isArray(plan.comments) ? plan.comments.length : 0;
     const entry = sampleByKey(latest.sampleKey);
     const change = `Studio edit plan: ${ops} operation${ops === 1 ? "" : "s"}${comments ? `, ${comments} comment${comments === 1 ? "" : "s"}` : ""}`;
-    const v = makeVersion(entry, nextVersion(latest.version), change, "studio");
+    const v = makeVersion(entry, job.brief, nextVersion(latest.version), change, "studio");
     job.versions.push(v);
     this.persist();
     return { job: { ...job }, version: v };

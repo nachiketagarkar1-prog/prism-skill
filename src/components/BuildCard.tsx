@@ -1,5 +1,5 @@
-import { AlertTriangle, Check, Download, ExternalLink, FileSpreadsheet, FileText, Info, Loader2, MonitorPlay, Presentation, Sparkles } from "lucide-react";
-import { SKILL_NOUN, type BuildState, type OutputFile } from "../types";
+import { AlertTriangle, Check, Download, ExternalLink, FileSpreadsheet, FileText, Loader2, MonitorPlay, Presentation, Sparkles } from "lucide-react";
+import { SKILL_NOUN, type Brief, type BuildState, type OutputFile } from "../types";
 import { useStore } from "../state/store";
 import { cx, formatBytes } from "../lib/util";
 
@@ -63,8 +63,10 @@ export function BuildCard({ build }: { build: BuildState }) {
         <Chip label="Market" value={brief.market} />
         <Chip label="Geography" value={brief.region} />
         <Chip label="Forecast" value={brief.forecast} />
-        <Chip label="Client" value={brief.client} />
+        {brief.client && <Chip label="Prepared for" value={brief.client} />}
+        {brief.audience && <Chip label="Audience" value={brief.audience} />}
       </div>
+      {brief.sources && <div className="px-5 pt-2 text-xs text-slate-500">Sources: {sourceList(brief).join(" · ")}</div>}
 
       {/* Stages */}
       {build.status === "running" || build.status === "error" ? (
@@ -117,16 +119,6 @@ export function BuildCard({ build }: { build: BuildState }) {
           {build.note && (
             <p className="text-[14.5px] leading-relaxed text-slate-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: mdInline(build.note) }} />
           )}
-          {brief.assumptions.length > 0 && build.kind === "create" && (
-            <div className="flex gap-2.5 rounded-xl bg-slate-50 p-3 text-[13px] text-slate-600 dark:bg-white/5 dark:text-slate-400">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <ul className="space-y-0.5">
-                {brief.assumptions.map((a) => (
-                  <li key={a}>{a}</li>
-                ))}
-              </ul>
-            </div>
-          )}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3">
             <FileCard file={version.files[0]} onOpen={() => openPanel(job.id, version.version, "file")} />
             <StudioCard file={version.files[1]} skill={brief.skill} onOpen={() => openPanel(job.id, version.version, "studio")} />
@@ -136,6 +128,20 @@ export function BuildCard({ build }: { build: BuildState }) {
       )}
     </div>
   );
+}
+
+/** Human list of the evidence a brief allows, in the skills' order of precedence. */
+export function sourceList(b: Pick<Brief, "sources" | "files" | "urls">): string[] {
+  const s = b.sources;
+  if (!s) return [];
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  return [
+    s.gvr && "GVR report",
+    s.client && (b.files?.length ? n(b.files.length, "client document", "client documents") : "Client documents"),
+    s.urls && (b.urls?.length ? n(b.urls.length, "web page", "web pages") : "Web pages"),
+    s.whitelist && "Whitelisted sources",
+    s.web && "Web research (cited)",
+  ].filter(Boolean) as string[];
 }
 
 function Chip({ label, value }: { label: string; value: string }) {

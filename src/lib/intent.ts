@@ -20,8 +20,7 @@ const BUILD_RX = /\b(build|create|make|generate|prepare|draft|produce|put togeth
 const EXCEL_RX = /\b(excel|xlsx|spreadsheet|workbook)\b|\bexport (the )?(data|numbers|figures|tables|charts)\b/i;
 const CHANGE_RX =
   /\b(change|update|add|remove|drop|rename|retitle|move|replace|include|exclude|focus|only|switch|swap|shorten|expand|rebuild|redo|make (it|this|slide|section|the)|convert|hide|instead)\b/i;
-const NA_RX = /\b(north america|n\.\s?america|u\.s\.?|usa|united states|canada|mexico)\b/i;
-const NA_ABBR_RX = /\b(NA|US)\b/; // case-sensitive so "us" (pronoun) doesn't match
+const NA_ABBR_RX = /\bNA\b/; // case-sensitive
 const GLOBAL_RX = /\b(global|worldwide|all regions)\b/i;
 
 const TYPE_RULES: [RegExp, Intent["type"]][] = [
@@ -40,8 +39,24 @@ export function detectType(text: string): Intent["type"] {
   return undefined;
 }
 
+// Regions first, then countries (a named country is the geography, not its region).
+const GEO_RULES: [RegExp, string][] = [
+  [/\bnorth america(n)?\b|\bn\.\s?america\b/i, "North America"],
+  [/\b(europe|european|emea)\b/i, "Europe"],
+  [/\b(asia[\s-]?pacific|apac)\b/i, "Asia Pacific"],
+  [/\b(latin america|latam|south america)\b/i, "Latin America"],
+  [/\b(middle east|mea|gcc|africa)\b/i, "Middle East & Africa"],
+  [/\b(united states|usa|u\.s\.a?\.?)(?=\W|$)/i, "United States"],
+  [/\bUS\b/, "United States"],
+  [/\b(united kingdom|u\.k\.|britain)\b|\bUK\b/, "United Kingdom"],
+  ...["Canada", "Mexico", "Brazil", "Germany", "France", "Italy", "Spain", "China", "India", "Japan", "South Korea", "Australia", "Saudi Arabia", "UAE", "South Africa", "Oman", "Indonesia"].map(
+    (c): [RegExp, string] => [new RegExp(`\\b${c}\\b`, "i"), c],
+  ),
+];
+
 export function detectRegion(text: string): Region | undefined {
-  if (NA_RX.test(text) || NA_ABBR_RX.test(text)) return "North America";
+  for (const [rx, name] of GEO_RULES) if (rx.test(text)) return name;
+  if (NA_ABBR_RX.test(text)) return "North America";
   if (GLOBAL_RX.test(text)) return "Global";
   return undefined;
 }

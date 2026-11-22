@@ -4,6 +4,7 @@ import type { Thread } from "../types";
 import { AssistantAvatar } from "./PrismLogo";
 import { Markdown } from "./Markdown";
 import { BuildCard, ExcelCard } from "./BuildCard";
+import { BriefForm } from "./BriefForm";
 import { useStore } from "../state/store";
 import { cx } from "../lib/util";
 
@@ -47,6 +48,7 @@ export function MessageList({ thread, outdent }: { thread: Thread; outdent: bool
               ) : m.text ? (
                 <>
                   <Markdown text={m.text} />
+                  {m.intake && <BriefForm threadId={thread.id} msgId={m.id} intake={m.intake} />}
                   {m.attachment && <Attachment {...m.attachment} />}
                   {m.footnote && <div className="mt-2 text-xs text-slate-400">{m.footnote}</div>}
                 </>

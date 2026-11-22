@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { SKILL_NOUN } from "../types";
-import type { BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
+import type { Brief, BriefDraft, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
 import { VersionConflictError } from "../types";
 import { api, initialStages, stageDefs } from "../api/mockApi";
-import { pickSample, TYPE_LABEL } from "../api/catalog";
+import { OUTPUT_TYPES, TYPE_LABEL } from "../api/catalog";
 import { detectIntent, type Intent } from "../lib/intent";
 import { genericAnswer } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
@@ -105,28 +105,47 @@ function init(): State {
 
 /* ---------- helpers ---------- */
 
-const CLIENT = "Northwind Diagnostics (sample client)";
+const URL_RX = /https?:\/\/[^\s)>\]]+/g;
+const VALID_TYPES = new Set(OUTPUT_TYPES.map((t) => t.id as string));
 
-function makeBrief(intent: Intent, text: string): BuildState["brief"] {
-  const skill = intent.skill ?? "report";
-  const region = intent.region ?? "Global";
-  const { entry, fallbackNote } = pickSample(skill, intent.type, region);
-  const assumptions: string[] = [];
-  if (!intent.type) assumptions.push(`No ${SKILL_NOUN[skill]} type stated, so I built a ${TYPE_LABEL[entry.type]}.`);
-  if (!intent.region) assumptions.push("No geography stated, so the scope is Global.");
-  if (intent.market && !/blood bank/i.test(intent.market))
-    assumptions.push(`Working model: the bundled sample covers Blood Bank Serology, not ${intent.market}.`);
-  if (fallbackNote) assumptions.push(fallbackNote);
+/**
+ * Pre-fill the brief card from what the user actually said (and the thread's earlier output, if any).
+ * Nothing is assumed: unanswered fields stay empty and the card asks for them.
+ */
+function draftFromIntent(intent: Intent, text: string, uploads: string[], prev?: Job, sameOutput = false): BriefDraft {
+  const urls = text.match(URL_RX) ?? [];
+  // The output type carries over only for "make it a presentation"-style requests about the same output.
+  const type = intent.type && VALID_TYPES.has(intent.type) ? (intent.type as OutputType) : sameOutput && prev ? prev.brief.type : "";
   return {
-    skill,
-    type: entry.type,
-    typeLabel: TYPE_LABEL[entry.type],
-    market: entry.market,
-    region,
-    client: CLIENT,
-    question: text.trim(),
+    skill: intent.skill ?? "report",
+    type,
+    market: intent.market ?? prev?.brief.market ?? "",
+    region: intent.region ?? prev?.brief.region ?? "",
+    includeClient: !!prev?.brief.client,
+    client: prev?.brief.client ?? "",
+    audience: prev?.brief.audience ?? "",
+    question: "",
+    sources: prev?.brief.sources ?? { gvr: true, client: uploads.length > 0, urls: urls.length > 0, whitelist: true, web: true },
+    files: [...new Set([...(prev?.brief.files ?? []), ...uploads])],
+    urls: [...new Set([...(prev?.brief.urls ?? []), ...urls])],
+  };
+}
+
+function briefFromDraft(d: BriefDraft, text: string): Brief {
+  const type = d.type as OutputType;
+  return {
+    skill: d.skill,
+    type,
+    typeLabel: TYPE_LABEL[type],
+    market: d.market.trim(),
+    region: d.region.trim(),
+    client: d.includeClient && d.client.trim() ? d.client.trim() : undefined,
+    audience: d.audience.trim() || undefined,
+    question: d.question.trim() || text.trim(),
     forecast: "2026–2033",
-    assumptions,
+    sources: d.sources,
+    files: d.sources.client ? d.files : [],
+    urls: d.sources.urls ? d.urls : [],
   };
 }
 
@@ -134,7 +153,9 @@ function deliveryNote(job: Job): string {
   const v = job.versions[job.versions.length - 1];
   const f = v.files[0];
   const unit = job.skill === "deck" ? "slides" : "pages";
-  const lines = [`**${job.brief.typeLabel}** ${SKILL_NOUN[job.skill]}, ${job.brief.region}: ${f.pages} ${unit}.`];
+  const lines = [
+    `**${job.brief.typeLabel}** ${SKILL_NOUN[job.skill]} on ${job.brief.market}, ${job.brief.region}: ${f.pages} ${unit}${job.brief.client ? `, prepared for ${job.brief.client}` : ""}.`,
+  ];
   if (job.skill === "deck") {
     // The deck note carries a one-line fact-check summary; the report UI shows none.
     lines.push(
@@ -157,6 +178,8 @@ interface Store {
   openPanel(jobId: string, version?: string, tab?: PanelState["tab"]): void;
   setPanel(p: PanelState | null): void;
   sendEditPlan(jobId: string, plan: EditPlan): Promise<void>;
+  confirmIntake(threadId: string, msgId: string, draft: BriefDraft): void;
+  cancelIntake(threadId: string, msgId: string): void;
   toggleDark(): void;
   resetDemo(): void;
   busy: boolean;
@@ -247,24 +270,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const crossSkill = intent.action === "change" && intent.explicitSkill && !sameSkill.length;
     const noMatch = intent.action === "build" && !sameSkill.some((j) => !intent.type || j.brief.type === intent.type);
     if (crossSkill || noMatch) {
-      const brief = makeBrief(
-        // Follow-up builds inherit the thread's scope unless the message restates it.
-        latestJob ? { ...intent, type: intent.type ?? latestJob.brief.type, region: intent.region ?? latestJob.brief.region } : intent,
-        text,
-      );
-      const build: BuildState = { kind: "create", brief, stages: initialStages(stageDefs.create[brief.skill]), status: "running" };
-      dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), build } });
-      api
-        .startJob(brief.skill, { thread_id: threadId, messages: history, uploads, type: brief.type, region: brief.region }, brief, (stages) =>
-          dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { stages } }),
-        )
-        .then(({ job, version }) => {
-          dispatch({ t: "setJob", job });
-          dispatch({ t: "linkJob", threadId, jobId: job.id });
-          dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "done", jobId: job.id, version: version.version, note: deliveryNote(job) } });
-          dispatch({ t: "panel", panel: { jobId: job.id, version: version.version, tab: "studio" } });
-        })
-        .catch((e: Error) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "error", error: e.message } }));
+      // Ask before building: the brief card collects type, market, geography, client name and sources.
+      // Later builds in the same thread start from its market, geography, client and sources.
+      const draft = draftFromIntent(intent, text, uploads, latestJob, crossSkill);
+      const noun = SKILL_NOUN[draft.skill];
+      const what = draft.type ? `${TYPE_LABEL[draft.type]} ${noun}` : noun;
+      dispatch({
+        t: "addMessage",
+        threadId,
+        msg: {
+          id: asstId,
+          role: "assistant",
+          ts: Date.now(),
+          text: `Before I create the ${what}, a few quick questions so it fits your client. I've filled in what your message told me; check it and add anything missing.`,
+          intake: { status: "open", draft },
+        },
+      });
       return;
     }
 
@@ -369,6 +390,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  /** Start a skill job from a confirmed brief. */
+  const startBuild = useCallback((threadId: string, brief: Brief) => {
+    const thread = stateRef.current.threads.find((t) => t.id === threadId);
+    if (!thread) return;
+    const asstId = uid();
+    const build: BuildState = { kind: "create", brief, stages: initialStages(stageDefs.create[brief.skill]), status: "running" };
+    dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), build } });
+    api
+      .startJob(
+        brief.skill,
+        { thread_id: threadId, messages: toApiMessages(thread), uploads: brief.files ?? [], type: brief.type, region: brief.region },
+        brief,
+        (stages) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { stages } }),
+      )
+      .then(({ job, version }) => {
+        dispatch({ t: "setJob", job });
+        dispatch({ t: "linkJob", threadId, jobId: job.id });
+        dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "done", jobId: job.id, version: version.version, note: deliveryNote(job) } });
+        dispatch({ t: "panel", panel: { jobId: job.id, version: version.version, tab: "studio" } });
+      })
+      .catch((e: Error) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "error", error: e.message } }));
+  }, []);
+
+  const confirmIntake = useCallback(
+    (threadId: string, msgId: string, draft: BriefDraft) => {
+      const thread = stateRef.current.threads.find((t) => t.id === threadId);
+      const idx = thread?.messages.findIndex((m) => m.id === msgId) ?? -1;
+      // The request that opened the card is the user turn just before it.
+      const request = idx > 0 ? (thread!.messages[idx - 1].text ?? "") : "";
+      dispatch({ t: "patchMessage", threadId, msgId, patch: { intake: { status: "confirmed", draft } } });
+      startBuild(threadId, briefFromDraft(draft, request));
+    },
+    [startBuild],
+  );
+
+  const cancelIntake = useCallback((threadId: string, msgId: string) => {
+    const m = stateRef.current.threads.find((t) => t.id === threadId)?.messages.find((x) => x.id === msgId);
+    if (m?.intake) dispatch({ t: "patchMessage", threadId, msgId, patch: { intake: { ...m.intake, status: "cancelled" } } });
+  }, []);
+
   const toggleDark = useCallback(() => dispatch({ t: "dark", dark: !stateRef.current.dark }), []);
   const resetDemo = useCallback(() => {
     (api as unknown as { reset?: () => void }).reset?.();
@@ -376,8 +437,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Store>(
-    () => ({ state, activeThread, newChat, openThread, send, openPanel, setPanel, sendEditPlan, toggleDark, resetDemo, busy }),
-    [state, activeThread, newChat, openThread, send, openPanel, setPanel, sendEditPlan, toggleDark, resetDemo, busy],
+    () => ({ state, activeThread, newChat, openThread, send, openPanel, setPanel, sendEditPlan, confirmIntake, cancelIntake, toggleDark, resetDemo, busy }),
+    [state, activeThread, newChat, openThread, send, openPanel, setPanel, sendEditPlan, confirmIntake, cancelIntake, toggleDark, resetDemo, busy],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

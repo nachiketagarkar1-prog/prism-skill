@@ -5,11 +5,25 @@ export type Skill = "report" | "deck";
 /** User-facing noun for each skill. Internally the deck skill stays "deck"; users see "presentation". */
 export const SKILL_NOUN: Record<Skill, string> = { report: "report", deck: "presentation" };
 export type ComposerMode = "auto" | "answer" | "report" | "deck";
-export type Region = "Global" | "North America";
+/** Geography as the user chose it ("Global", "North America", "Germany", ...). */
+export type Region = string;
 
-export type ReportType = "executive_view" | "market_snapshot" | "opportunity_assessment";
-export type DeckType = "executive_view" | "market_snapshot" | "opportunity_assessment" | "market_summary" | "competitive_landscape";
-export type OutputType = ReportType | DeckType;
+/** Output types offered for both reports and presentations. */
+export type OutputType = "executive_view" | "market_snapshot" | "competitive_landscape" | "gtm_strategy" | "opportunity_assessment" | "market_summary";
+export type ReportType = OutputType;
+export type DeckType = OutputType;
+
+/**
+ * Evidence the skill may use, in the skills' order of precedence (references/sources.md):
+ * GVR report / ME workbook > client documents > grandviewresearch.com and whitelisted sites > other cited web research.
+ */
+export interface SourceChoice {
+  gvr: boolean; // GVR report PDF / ME workbook
+  client: boolean; // client documents (PDF, DOCX, PPTX, XLSX, CSV)
+  urls: boolean; // specific web pages the client points to
+  whitelist: boolean; // grandviewresearch.com + whitelisted domains
+  web: boolean; // other reputable sources, cited, to fill gaps only
+}
 
 /* ---------- Chat ---------- */
 
@@ -27,6 +41,28 @@ export interface ChatMessage {
   footnote?: string;
   /** A delivered file shown under the message (e.g. the Excel export asked for in chat). */
   attachment?: { jobId: string; version: string; kind: "xlsx" };
+  /** Brief questions asked before a skill runs; the build starts only once the user confirms. */
+  intake?: Intake;
+}
+
+export interface Intake {
+  status: "open" | "confirmed" | "cancelled";
+  draft: BriefDraft;
+}
+
+/** What the brief card collects. Empty strings mean "not answered yet". */
+export interface BriefDraft {
+  skill: Skill;
+  type: OutputType | "";
+  market: string;
+  region: string;
+  includeClient: boolean;
+  client: string;
+  audience: string;
+  question: string;
+  sources: SourceChoice;
+  files: string[];
+  urls: string[];
 }
 
 export interface Thread {
@@ -57,12 +93,15 @@ export interface Brief {
   typeLabel: string;
   market: string;
   region: Region;
-  client: string;
+  /** "Prepared for" name; omitted unless the user chose to add one. */
+  client?: string;
   question: string;
   forecast: string;
   audience?: string;
-  /** Assumptions the skill states in the delivery note (unattended jobs). */
-  assumptions: string[];
+  /** Evidence the user allowed, plus the client files and URLs given. Optional for builds made before the brief card. */
+  sources?: SourceChoice;
+  files?: string[];
+  urls?: string[];
 }
 
 export interface BuildState {

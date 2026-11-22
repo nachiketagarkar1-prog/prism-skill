@@ -1,6 +1,6 @@
 // Catalog of the sample outputs bundled from the two skill zips (public/samples).
 // The mock API serves these in place of real worker output.
-import type { DeckType, Region, ReportType, Skill } from "../types";
+import type { DeckType, OutputType, Region, ReportType, Skill } from "../types";
 
 export interface SampleEntry {
   key: string;
@@ -221,24 +221,31 @@ export const SAMPLES: SampleEntry[] = [
   ),
 ];
 
-export const REPORT_TYPES: ReportType[] = ["executive_view", "market_snapshot", "opportunity_assessment"];
-export const DECK_TYPES: DeckType[] = ["executive_view", "market_snapshot", "opportunity_assessment", "market_summary", "competitive_landscape"];
+/** Output types offered in the brief card, in the order shown on the home screen. */
+export const OUTPUT_TYPES: { id: OutputType; report: string; presentation: string }[] = [
+  { id: "executive_view", report: "Market Executive View Report", presentation: "Market Executive View" },
+  { id: "market_snapshot", report: "Market Snapshot Report", presentation: "Market Snapshot" },
+  { id: "competitive_landscape", report: "Competitive Landscape Report", presentation: "Competitive Landscape" },
+  { id: "gtm_strategy", report: "GTM Strategy Report", presentation: "GTM Strategy" },
+  { id: "opportunity_assessment", report: "Opportunity Assessment Report", presentation: "Opportunity Assessment" },
+];
 
-/** Find the closest sample for a request. Returns the entry plus a note when it is a fallback. */
-export function pickSample(skill: Skill, type: string | undefined, region: Region): { entry: SampleEntry; fallbackNote?: string } {
+/** Geographies offered in the brief card; any other country or region can be typed in. */
+export const GEOGRAPHIES = ["Global", "North America", "Europe", "Asia Pacific", "Latin America", "Middle East & Africa"];
+
+/**
+ * Working model only: pick the bundled sample file that stands in for a requested output.
+ * Requests with no matching sample (type, geography or market) quietly use the closest one;
+ * the brief, titles and file names always follow what the user asked for.
+ */
+export function pickSample(skill: Skill, type: string | undefined, region: Region): { entry: SampleEntry } {
   const pool = SAMPLES.filter((s) => s.skill === skill);
+  const sampleRegion = region === "North America" ? "North America" : "Global";
   const byType = pool.filter((s) => s.type === type);
-  const exact = byType.find((s) => s.region === region) ?? byType[0];
-  if (exact) {
-    const note = exact.region !== region ? `Sample presentation is ${exact.region}; a ${region} presentation would filter evidence by geography.` : undefined;
-    return { entry: exact, fallbackNote: note };
-  }
+  const exact = byType.find((s) => s.region === sampleRegion) ?? byType[0];
+  if (exact) return { entry: exact };
   const fallbackType = skill === "report" ? "opportunity_assessment" : "market_summary";
-  const entry = pool.find((s) => s.type === fallbackType && s.region === region) ?? pool.find((s) => s.type === fallbackType)!;
-  return {
-    entry,
-    fallbackNote: type ? `No ${TYPE_LABEL[type] ?? type} sample is bundled, so the closest sample (${TYPE_LABEL[entry.type]}) is shown.` : undefined,
-  };
+  return { entry: pool.find((s) => s.type === fallbackType && s.region === sampleRegion) ?? pool.find((s) => s.type === fallbackType)! };
 }
 
 export function sampleByKey(key: string): SampleEntry {
