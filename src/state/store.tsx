@@ -77,6 +77,14 @@ const THREADS_KEY = "prism.threads.v1";
 const JOBS_KEY = "prism.mock.jobs.v1";
 const DARK_KEY = "prism.dark";
 
+/** Theme from the host page: an explicit data-theme on <html> (e.g. the artifact viewer), else the OS setting. */
+function hostDark(): boolean | null {
+  const t = document.documentElement.dataset.theme;
+  if (t === "dark" || t === "light") return t === "dark";
+  return null;
+}
+const systemDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
+
 function init(): State {
   const threads = load<Thread[]>(THREADS_KEY, seedThreads()).map((t) => ({
     ...t,
@@ -90,7 +98,7 @@ function init(): State {
     activeId: threads[0]?.id ?? null,
     jobs: load(JOBS_KEY, {}),
     panel: null,
-    dark: load(DARK_KEY, typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches),
+    dark: hostDark() ?? load(DARK_KEY, systemDark()),
   };
 }
 
@@ -163,7 +171,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => save(THREADS_KEY, state.threads), [state.threads]);
   useEffect(() => {
     save(DARK_KEY, state.dark);
-    document.documentElement.classList.toggle("dark", state.dark);
+    const root = document.documentElement;
+    root.classList.toggle("dark", state.dark);
+    root.style.colorScheme = state.dark ? "dark" : "light";
+    root.style.background = state.dark ? "#0e0b16" : "#ffffff";
   }, [state.dark]);
 
   const activeThread = state.threads.find((t) => t.id === state.activeId) ?? null;
@@ -310,6 +321,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "error", error: (e as Error).message } });
       }
     }
+  }, []);
+
+  // Follow the host's theme switch (data-theme on <html>) and OS theme changes.
+  useEffect(() => {
+    const sync = () => {
+      const d = hostDark() ?? systemDark();
+      if (d !== stateRef.current.dark) dispatch({ t: "dark", dark: d });
+    };
+    const mo = new MutationObserver(sync);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    const mq = typeof matchMedia === "function" ? matchMedia("(prefers-color-scheme: dark)") : null;
+    const onMq = () => {
+      if (!hostDark()) sync();
+    };
+    mq?.addEventListener("change", onMq);
+    return () => {
+      mo.disconnect();
+      mq?.removeEventListener("change", onMq);
+    };
   }, []);
 
   const toggleDark = useCallback(() => dispatch({ t: "dark", dark: !stateRef.current.dark }), []);
