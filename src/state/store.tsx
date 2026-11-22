@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { SKILL_NOUN } from "../types";
-import type { Brief, BriefDraft, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
-import { VersionConflictError } from "../types";
-import { api, initialStages, stageDefs } from "../api/mockApi";
-import { GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import type { Brief, BriefDraft, Skill, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
+import { PrototypeLimitError, VersionConflictError } from "../types";
+import { api, dropSampleClient, initialStages, mockApi, stageDefs } from "../api/mockApi";
+import { coverageSummary, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
 import { detectForecast, detectIntent, type Intent } from "../lib/intent";
 import { genericAnswer } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
@@ -75,7 +75,6 @@ function reducer(s: State, a: Action): State {
 }
 
 const THREADS_KEY = "prism.threads.v1";
-const JOBS_KEY = "prism.mock.jobs.v1";
 const DARK_KEY = "prism.dark";
 
 /** Theme from the host page: an explicit data-theme on <html> (e.g. the artifact viewer), else the OS setting. */
@@ -90,14 +89,15 @@ function init(): State {
   const threads = load<Thread[]>(THREADS_KEY, seedThreads()).map((t) => ({
     ...t,
     // A build interrupted by a reload can't resume in the mock; mark it as such.
-    messages: t.messages.map((m) =>
-      m.build?.status === "running" ? { ...m, build: { ...m.build, status: "error" as const, error: "Interrupted by a page reload." } } : m,
-    ),
+    messages: t.messages.map((m) => {
+      const msg = m.build ? { ...m, build: { ...m.build, brief: dropSampleClient(m.build.brief) } } : m;
+      return msg.build?.status === "running" ? { ...msg, build: { ...msg.build!, status: "error" as const, error: "Interrupted by a page reload." } } : msg;
+    }),
   }));
   return {
     threads,
     activeId: threads[0]?.id ?? null,
-    jobs: load(JOBS_KEY, {}),
+    jobs: mockApi.allJobs(),
     panel: null,
     dark: hostDark() ?? load(DARK_KEY, systemDark()),
   };
@@ -144,6 +144,7 @@ function briefFromDraft(d: BriefDraft, text: string): Brief {
     client: d.includeClient && d.client.trim() ? d.client.trim() : undefined,
     audience: d.audience.trim() || undefined,
     question: d.question.trim() || text.trim(),
+    decision: d.question.trim() || undefined,
     forecast: d.forecast.trim().replace(/\s*[-—–]\s*/, "–"),
     length: standardLength(d.skill, type),
     sources: d.sources,
@@ -152,9 +153,21 @@ function briefFromDraft(d: BriefDraft, text: string): Brief {
   };
 }
 
+/** Reply when the prototype can't carry out a request: say why, say what is available, ask what to do. */
+function notBuiltText(reasons: string[], skill: Skill): string {
+  return [
+    "I haven't built this, rather than hand you a different output:",
+    "",
+    ...reasons.map((r) => `- ${r}`),
+    "",
+    `This prototype can build: ${coverageSummary(skill)}. Tell me how you'd like to proceed, for example a different geography, or keep the current version.`,
+  ].join("\n");
+}
+
 function deliveryNote(job: Job): string {
   const v = job.versions[job.versions.length - 1];
-  const f = v.files[0];
+  const f = v.files.find((x) => x.kind === "pdf" || x.kind === "pptx");
+  if (!f) return `The studio shows ${v.version} with your edits. The PDF and Excel for ${v.version} are produced when the live skill re-renders it.`;
   const unit = job.skill === "deck" ? "slides" : "pages";
   const lines = [
     `**${job.brief.typeLabel}** ${SKILL_NOUN[job.skill]} on ${job.brief.market}, ${job.brief.region}: ${f.pages} ${unit}${job.brief.client ? `, prepared for ${job.brief.client}` : ""}.`,
@@ -314,6 +327,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           });
           return;
         }
+        if (res.kind === "not_built") {
+          const latest = target.versions[target.versions.length - 1].version;
+          dispatch({
+            t: "patchMessage",
+            threadId,
+            msgId: asstId,
+            patch: {
+              text: notBuiltText(res.reasons, target.skill),
+              footnote: `Nothing was built · ${SKILL_NOUN[target.skill]} ${latest} is unchanged`,
+            },
+          });
+          return;
+        }
         dispatch({ t: "setJob", job: res.job });
         dispatch({
           t: "patchBuild",
@@ -368,6 +394,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             error: `This edit plan is based on ${e.base}, but ${e.latest} is already the latest version. Reload the ${e.latest} studio and make your edits there; plans are never merged silently.`,
           },
         });
+      } else if (e instanceof PrototypeLimitError) {
+        dispatch({
+          t: "patchBuild",
+          threadId,
+          msgId: asstId,
+          patch: { status: "not_built", error: `${e.message} Nothing was built, and the latest version is unchanged.` },
+        });
       } else {
         dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "error", error: (e as Error).message } });
       }
@@ -413,7 +446,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "done", jobId: job.id, version: version.version, note: deliveryNote(job) } });
         dispatch({ t: "panel", panel: { jobId: job.id, version: version.version, tab: "studio" } });
       })
-      .catch((e: Error) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "error", error: e.message } }));
+      .catch((e: Error) =>
+        dispatch({
+          t: "patchBuild",
+          threadId,
+          msgId: asstId,
+          patch: e instanceof PrototypeLimitError ? { status: "not_built", error: e.message } : { status: "error", error: e.message },
+        }),
+      );
   }, []);
 
   const confirmIntake = useCallback(

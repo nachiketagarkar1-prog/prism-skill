@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Regenerate the Excel exports for the bundled sample outputs.
-#   scripts/build_sample_exports.sh <report-examples-dir> <deck-examples-dir>
-# The examples dirs are the skills' examples/ folders (spec JSON); the PPTX files are in public/samples/decks.
+#   scripts/build_sample_exports.sh [report-specs-dir] [presentation-specs-dir]
+# Defaults to samples-src/ (the specs the bundled samples were built from; reports carry no client name).
 set -euo pipefail
-RX=${1:?report examples dir}
-DX=${2:?deck examples dir}
+RX=${1:-samples-src/reports}
+DX=${2:-samples-src/decks}
 cd "$(dirname "$0")/.."
 
 for pair in executive_view_global:ExecutiveView_Global executive_view_north_america:ExecutiveView_NorthAmerica \

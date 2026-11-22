@@ -1,0 +1,262 @@
+{
+ "style": "R",
+ "meta": {
+  "title": "Blood Bank Serology Market",
+  "date": "November 2026"
+ },
+ "slides": [
+  {
+   "type": "cover"
+  },
+  {
+   "type": "content",
+   "title": "Market Snapshot: Blood Bank Serology Market Analysis (I/III)",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 1.5,
+       "type": "stack",
+       "blocks": [
+        {
+         "type": "chart",
+         "h": 1.2,
+         "label": "Global Blood Bank Serology Market Size (USD Million)",
+         "chart": "column",
+         "categories": [
+          "2021",
+          "2025",
+          "2033"
+         ],
+         "series": [
+          {
+           "name": "Market size",
+           "values": [
+            2577.87,
+            3329.28,
+            5893.08
+           ]
+          }
+         ],
+         "number_format": "#,##0.0"
+        },
+        {
+         "type": "chart",
+         "h": 1,
+         "label": "Blood Bank Serology Market Size by Region (USD Million)",
+         "chart": "stacked_bar",
+         "categories": [
+          "2025",
+          "2033"
+         ],
+         "series": [
+          {
+           "name": "North America",
+           "values": [
+            1374.14,
+            2360.7
+           ]
+          },
+          {
+           "name": "Europe",
+           "values": [
+            823.11,
+            1474.16
+           ]
+          },
+          {
+           "name": "Asia Pacific",
+           "values": [
+            949.99,
+            1761.56
+           ]
+          },
+          {
+           "name": "Latin America",
+           "values": [
+            104.17,
+            171.59
+           ]
+          },
+          {
+           "name": "Middle East & Africa",
+           "values": [
+            77.87,
+            125.07
+           ]
+          }
+         ],
+         "number_format": "#,##0",
+         "legend": "bottom",
+         "font_size": 8
+        }
+       ]
+      },
+      {
+       "w": 1,
+       "type": "stack",
+       "blocks": [
+        {
+         "type": "table",
+         "h": 1.2,
+         "label": "Regional CAGR (2025\u20132033, GVR analysis)",
+         "columns": [
+          "Region",
+          "CAGR"
+         ],
+         "rows": [
+          [
+           "Asia Pacific",
+           "8.0%"
+          ],
+          [
+           "Europe",
+           "7.6%"
+          ],
+          [
+           "North America",
+           "7.0%"
+          ],
+          [
+           "Latin America",
+           "6.4%"
+          ],
+          [
+           "Middle East & Africa",
+           "6.1%"
+          ]
+         ]
+        },
+        {
+         "type": "callout",
+         "h": 1,
+         "variant": "insight",
+         "label": "Key regional trend",
+         "text": "North America dominated the market in 2025 with a 41.3% share, while Asia Pacific is set to grow the fastest at 8.08% CAGR through 2033."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "title": "Market Snapshot: Blood Bank Serology Market Analysis (II/III)",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 1.5,
+       "type": "chart",
+       "label": "Product Outlook (USD Million)",
+       "chart": "stacked_bar",
+       "categories": [
+        "2025",
+        "2033"
+       ],
+       "series": [
+        {
+         "name": "Reagent & Consumables",
+         "values": [
+          2208.34,
+          3776.76
+         ]
+        },
+        {
+         "name": "Instruments & Systems",
+         "values": [
+          751.05,
+          1372.64
+         ]
+        },
+        {
+         "name": "Software & Services",
+         "values": [
+          369.89,
+          743.68
+         ]
+        }
+       ],
+       "number_format": "#,##0",
+       "legend": "bottom"
+      },
+      {
+       "w": 1,
+       "type": "table",
+       "label": "CAGR (2026\u20132033)",
+       "columns": [
+        "Product",
+        "CAGR"
+       ],
+       "rows": [
+        [
+         "Software & Services",
+         "9.17%"
+        ],
+        [
+         "Instruments & Systems",
+         "7.89%"
+        ],
+        [
+         "Reagent & Consumables",
+         "6.99%"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "hin": 0.8,
+     "type": "callout",
+     "variant": "insight",
+     "label": "Key product trend",
+     "text": "Reagent & consumables accounted for 66.3% of revenue in 2025, driven by recurring demand for antisera, reagent red cells, gel cards and screening panels."
+    }
+   ]
+  },
+  {
+   "type": "divider",
+   "title": "Market Dynamics and Competitive Analysis",
+   "subtitle": "2026"
+  },
+  {
+   "type": "content",
+   "title": "Market Dynamics: Blood Bank Serology Market Analysis (III/III)",
+   "rows": [
+    {
+     "type": "numbered",
+     "items": [
+      {
+       "title": "Infectious disease marker screening:",
+       "text": "WHO recommends screening every donation for HIV, hepatitis B, hepatitis C and syphilis, creating recurring demand for assays, calibrators and controls."
+      },
+      {
+       "title": "Red cell typing & compatibility testing:",
+       "text": "ABO/RhD typing, antibody screening, identification and crossmatching precede every issue of compatible blood."
+      },
+      {
+       "title": "Automation of serology workflows:",
+       "text": "Higher sample volumes and traceability needs push labs toward automated grouping, antibody and DAT platforms."
+      },
+      {
+       "title": "Plasma fractionation testing:",
+       "text": "Growing plasma collection requires qualified-donation screening (HBsAg, anti-HIV, anti-HCV) before fractionation."
+      },
+      {
+       "title": "Specialized reagents for complex compatibility:",
+       "text": "Anti-CD38 therapy interference creates need for DTT-treated cells, soluble CD38 and related reagents."
+      }
+     ]
+    }
+   ],
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)"
+  },
+  {
+   "type": "closing"
+  }
+ ],
+ "cover": "C"
+}

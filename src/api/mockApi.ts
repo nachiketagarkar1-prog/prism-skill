@@ -7,8 +7,8 @@
 //
 // Swap `mockApi` for an HTTP implementation of `PrismApi` to wire the real backend.
 import type { Brief, EditPlan, Job, OutputFile, Region, Skill, Stage, StageListener, StartJobRequest, TurnRequest, TurnResponse, Version } from "../types";
-import { VersionConflictError } from "../types";
-import { pickSample, sampleByKey, standardLength, TYPE_LABEL, type SampleEntry } from "./catalog";
+import { PrototypeLimitError, SKILL_NOUN, VersionConflictError } from "../types";
+import { coverage, sampleByKey, standardLength, TYPE_LABEL, type SampleEntry } from "./catalog";
 import { detectForecast, detectIntent, detectLength, detectRegion, detectType } from "../lib/intent";
 import { answerFromOutput, nextVersion } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
@@ -143,8 +143,24 @@ function makeVersion(entry: SampleEntry, brief: Brief, version: string, change: 
 
 const JOBS_KEY = "prism.mock.jobs.v1";
 
+/** Earlier builds stored a made-up sample client; drop it so nothing shows a client the user never gave. */
+const SAMPLE_CLIENT_RX = /northwind/i;
+export function dropSampleClient<T extends { client?: string }>(b: T): T {
+  if (b && b.client && SAMPLE_CLIENT_RX.test(b.client)) {
+    const { client: _drop, ...rest } = b;
+    void _drop;
+    return rest as T;
+  }
+  return b;
+}
+function loadJobs(): Record<string, Job> {
+  const jobs = load<Record<string, Job>>(JOBS_KEY, {});
+  for (const j of Object.values(jobs)) j.brief = dropSampleClient(j.brief);
+  return jobs;
+}
+
 class MockPrismApi implements PrismApi {
-  private jobs: Record<string, Job> = load(JOBS_KEY, {});
+  private jobs: Record<string, Job> = loadJobs();
   /** Multiplier on stage timings; lower for faster demos. */
   speed = 1;
 
@@ -152,13 +168,20 @@ class MockPrismApi implements PrismApi {
     save(JOBS_KEY, this.jobs);
   }
 
+  allJobs() {
+    return this.jobs;
+  }
+
   getJob(id: string) {
     return this.jobs[id];
   }
 
   async startJob(skill: Skill, req: StartJobRequest, brief: Brief, onStage: StageListener) {
+    // Only build what this prototype really has; never substitute another output.
+    const cov = coverage(skill, brief.type, brief.region, brief.market, brief.forecast);
+    if (!cov.ok) throw new PrototypeLimitError(cov.reasons);
     await runStages(CREATE_STAGES[skill], onStage, this.speed);
-    const { entry } = pickSample(skill, req.type, req.region ?? "Global");
+    const entry = cov.entry;
     const version = makeVersion(entry, brief, "v1", `First issue: ${brief.typeLabel}, ${brief.region}`, "chat");
     const job: Job = {
       id: `${skill === "report" ? "rpt" : "dck"}_${uid()}`,
@@ -186,26 +209,41 @@ class MockPrismApi implements PrismApi {
       return { kind: "answer", markdown: answerFromOutput(job, last), version: latest.version };
     }
 
-    await runStages(UPDATE_STAGES, onStage, this.speed);
-    // A scope or type change in chat updates the brief; the working model swaps in the closest sample file.
+    // Work out what the turn asks for, then build only if the prototype can really produce it.
+    const noun = SKILL_NOUN[job.skill];
     const region: Region = detectRegion(last) ?? job.brief.region;
     const detected = detectType(last);
     const t =
       detected && detected in TYPE_LABEL && detected !== "strategy_mapping" && detected !== "market_overview" ? (detected as Brief["type"]) : job.brief.type;
-    const { entry } = pickSample(job.skill, t, region);
-    if (t !== job.brief.type || region !== job.brief.region) {
-      job.brief = { ...job.brief, type: t, typeLabel: TYPE_LABEL[t], region, length: standardLength(job.skill, t), pagesOverride: undefined };
-      job.title = `${job.brief.market} · ${job.brief.typeLabel}`;
-    }
-    // Length stays fixed until the client asks; then the requested count is used.
     const len = detectLength(last);
-    if (len) {
-      const unit = job.skill === "deck" ? "slides" : "pages";
-      job.brief = { ...job.brief, length: `${len.n} ${unit}`, pagesOverride: len.n };
-    }
     const fc = detectForecast(last);
-    if (fc && /\b(forecast|period|horizon|outlook)\b/i.test(last)) job.brief = { ...job.brief, forecast: fc };
-    const v = makeVersion(entry, job.brief, nextVersion(latest.version), `Chat: “${last.trim().slice(0, 90)}”`, "chat");
+    const newForecast = fc && /\b(forecast|period|horizon|outlook)\b/i.test(last) ? fc : job.brief.forecast;
+    const scopeChanged = t !== job.brief.type || region !== job.brief.region || newForecast !== job.brief.forecast;
+    const reasons: string[] = [];
+    if (len)
+      reasons.push(
+        `Resizing to ${len.n} ${job.skill === "deck" ? "slides" : "pages"} means re-planning and re-rendering the ${noun}, which needs the live skill.`,
+      );
+    let cov = scopeChanged ? coverage(job.skill, t, region, job.brief.market, newForecast) : null;
+    if (cov && !cov.ok) reasons.push(...cov.reasons);
+    if (!scopeChanged && !len) reasons.push(`Rewriting the ${noun} content (“${last.trim().slice(0, 80)}”) needs the live skill.`);
+    if (reasons.length || !cov?.ok) {
+      await sleep(600 * this.speed);
+      return { kind: "not_built", reasons };
+    }
+
+    await runStages(UPDATE_STAGES, onStage, this.speed);
+    job.brief = {
+      ...job.brief,
+      type: t,
+      typeLabel: TYPE_LABEL[t],
+      region,
+      forecast: newForecast,
+      length: standardLength(job.skill, t),
+      pagesOverride: undefined,
+    };
+    job.title = `${job.brief.market} · ${job.brief.typeLabel}`;
+    const v = makeVersion(cov.entry, job.brief, nextVersion(latest.version), `Chat: “${last.trim().slice(0, 90)}”`, "chat");
     job.versions.push(v);
     this.persist();
     return { kind: "version", job: { ...job }, version: v };
@@ -222,13 +260,28 @@ class MockPrismApi implements PrismApi {
     if (plan.base_version && plan.base_version !== latest.version) {
       throw new VersionConflictError(plan.base_version, latest.version);
     }
-    stages[0].status = "done";
-    await runStages(EDIT_PLAN_STAGES, onStage, this.speed, 1, stages);
     const ops = Array.isArray(plan.operations) ? plan.operations.length : 0;
     const comments = Array.isArray(plan.comments) ? plan.comments.length : 0;
-    const entry = sampleByKey(latest.sampleKey);
     const change = `Studio edit plan: ${ops} operation${ops === 1 ? "" : "s"}${comments ? `, ${comments} comment${comments === 1 ? "" : "s"}` : ""}`;
-    const v = makeVersion(entry, job.brief, nextVersion(latest.version), change, "studio");
+    // Presentation plans are applied to the PPTX by apply_edits.py, which needs the live skill.
+    if (job.skill === "deck" || !plan.spec || typeof plan.spec !== "object") {
+      throw new PrototypeLimitError([
+        job.skill === "deck"
+          ? `Your edit plan (${ops} operation${ops === 1 ? "" : "s"}) was received. Applying it to the PowerPoint runs apply_edits.py, which needs the live skill.`
+          : `Your edit plan (${ops} operation${ops === 1 ? "" : "s"}) arrived without the edited report spec, so it can't be applied here.`,
+      ]);
+    }
+    stages[0].status = "done";
+    await runStages(EDIT_PLAN_STAGES, onStage, this.speed, 1, stages);
+    // Report plans carry the full edited spec: the next version renders from it, as apply_edits.py does
+    // (version bumped, revision line added). The PDF and Excel are re-rendered by the live build.
+    const next = nextVersion(latest.version);
+    const spec = JSON.parse(JSON.stringify(plan.spec)) as { meta?: Record<string, unknown>; revision?: unknown[] };
+    spec.meta = { ...(spec.meta ?? {}), version: next };
+    spec.revision = [...(spec.revision ?? []), { version: next, date: today(), change }];
+    const entry = sampleByKey(latest.sampleKey);
+    const v: Version = { ...makeVersion(entry, job.brief, next, change, "studio"), spec };
+    v.files = v.files.filter((f) => f.kind === "studio");
     job.versions.push(v);
     this.persist();
     return { job: { ...job }, version: v };

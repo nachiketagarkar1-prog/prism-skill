@@ -29,14 +29,14 @@ const DATA_META: Record<string, [number, number]> = {
   GVR_BloodBank_Competitive_Landscape_v3_data: [12311, 4],
   GVR_BloodBank_Executive_View_v3_data: [17511, 6],
   GVR_BloodBank_Market_Snapshot_v3_data: [15688, 6],
-  GVR_BloodBank_Market_Summary_v5_data: [40384, 17],
-  GVR_BloodBank_Opportunity_Assessment_v3_data: [29766, 13],
-  BloodBankSerology_ExecutiveView_Global_v1_data: [14422, 6],
-  BloodBankSerology_ExecutiveView_NorthAmerica_v1_data: [13041, 6],
-  BloodBankSerology_MarketSnapshot_Global_v1_data: [16919, 7],
-  BloodBankSerology_MarketSnapshot_NorthAmerica_v1_data: [15846, 7],
-  BloodBankSerology_OpportunityAssessment_Global_v1_data: [36516, 18],
-  BloodBankSerology_OpportunityAssessment_NorthAmerica_v1_data: [26142, 13],
+  GVR_BloodBank_Market_Summary_v5_data: [40383, 17],
+  GVR_BloodBank_Opportunity_Assessment_v3_data: [29768, 13],
+  BloodBankSerology_ExecutiveView_Global_v1_data: [14375, 6],
+  BloodBankSerology_ExecutiveView_NorthAmerica_v1_data: [12990, 6],
+  BloodBankSerology_MarketSnapshot_Global_v1_data: [16870, 7],
+  BloodBankSerology_MarketSnapshot_NorthAmerica_v1_data: [15797, 7],
+  BloodBankSerology_OpportunityAssessment_Global_v1_data: [36468, 18],
+  BloodBankSerology_OpportunityAssessment_NorthAmerica_v1_data: [26088, 13],
 };
 
 function dataFile(dir: string, name: string) {
@@ -117,7 +117,7 @@ export const SAMPLES: SampleEntry[] = [
     "executive_view",
     "Global",
     "BloodBankSerology_ExecutiveView_Global",
-    247796,
+    244960,
     11,
     "Executive View: Market Reality, Positioning and Priorities",
     "A USD 3.3 Bn market (2025) growing at 7.45% to USD 5,893.1 Mn by 2033.",
@@ -127,7 +127,7 @@ export const SAMPLES: SampleEntry[] = [
     "executive_view",
     "North America",
     "BloodBankSerology_ExecutiveView_NorthAmerica",
-    232855,
+    229919,
     11,
     "Executive View: North America Market Reality, Positioning and Priorities",
     "North America holds 41.3% of global revenue; the U.S. is 83.85% of the region.",
@@ -137,7 +137,7 @@ export const SAMPLES: SampleEntry[] = [
     "market_snapshot",
     "Global",
     "BloodBankSerology_MarketSnapshot_Global",
-    220634,
+    217471,
     10,
     "Market Snapshot: Blood Bank Serology Market Analysis, 2025 – 2033",
     "USD 3,329.3 Mn in 2025; 7.45% CAGR 2026–2033.",
@@ -147,7 +147,7 @@ export const SAMPLES: SampleEntry[] = [
     "market_snapshot",
     "North America",
     "BloodBankSerology_MarketSnapshot_NorthAmerica",
-    204721,
+    201527,
     9,
     "Market Snapshot: North America Blood Bank Serology Market Analysis, 2025 – 2033",
     "North America is the largest region at 41.3% share (2025).",
@@ -157,7 +157,7 @@ export const SAMPLES: SampleEntry[] = [
     "opportunity_assessment",
     "Global",
     "BloodBankSerology_OpportunityAssessment_Global",
-    545216,
+    542530,
     18,
     "Opportunity Assessment: Where the USD 2.6 Billion of Growth Sits, 2025 – 2033",
     "USD 2.6 Bn of incremental revenue to 2033; hospital transfusion labs add the most.",
@@ -167,7 +167,7 @@ export const SAMPLES: SampleEntry[] = [
     "opportunity_assessment",
     "North America",
     "BloodBankSerology_OpportunityAssessment_NorthAmerica",
-    380795,
+    381757,
     15,
     "Opportunity Assessment: North America (U.S., Canada, Mexico), 2025 – 2033",
     "Sequencing the U.S., Canada and Mexico by incremental revenue and entry ease.",
@@ -265,18 +265,45 @@ export const GVR_FORECAST = "2026–2033";
 export const GEOGRAPHIES = ["Global", "North America", "Europe", "Asia Pacific", "Latin America", "Middle East & Africa"];
 
 /**
- * Working model only: pick the bundled sample file that stands in for a requested output.
- * Requests with no matching sample (type, geography or market) quietly use the closest one;
- * the brief, titles and file names always follow what the user asked for.
+ * What this prototype can actually deliver: the bundled outputs (built with the real skills from GVR's
+ * Blood Bank Serology report, 2025 base year, forecast 2026–2033). Anything else needs the live
+ * skills (research, rendering), so the prototype says so instead of substituting another output.
  */
-export function pickSample(skill: Skill, type: string | undefined, region: Region): { entry: SampleEntry } {
+export const PROTOTYPE_MARKET = "Blood Bank Serology";
+export const PROTOTYPE_FORECAST = "2026–2033";
+
+export type Coverage = { ok: true; entry: SampleEntry } | { ok: false; reasons: string[] };
+
+export function coverage(skill: Skill, type: string, region: string, market: string, forecast: string): Coverage {
+  const noun = skill === "deck" ? "presentation" : "report";
   const pool = SAMPLES.filter((s) => s.skill === skill);
-  const sampleRegion = region === "North America" ? "North America" : "Global";
-  const byType = pool.filter((s) => s.type === type);
-  const exact = byType.find((s) => s.region === sampleRegion) ?? byType[0];
-  if (exact) return { entry: exact };
-  const fallbackType = skill === "report" ? "opportunity_assessment" : "market_summary";
-  return { entry: pool.find((s) => s.type === fallbackType && s.region === sampleRegion) ?? pool.find((s) => s.type === fallbackType)! };
+  const reasons: string[] = [];
+  if (market && !/blood\s*bank\s*serology/i.test(market))
+    reasons.push(
+      `Evidence for ${market} isn't loaded in this prototype (it holds the GVR Blood Bank Serology report only), and live research isn't connected.`,
+    );
+  const regions = [...new Set(pool.map((s) => s.region))];
+  if (region && !regions.includes(region))
+    reasons.push(
+      `The ${noun}s here cover ${regions.join(" and ")}. A ${region} ${noun} needs a ${region} split, which the loaded GVR report doesn't have; filling it needs live research.`,
+    );
+  if (type && !pool.some((s) => s.type === type))
+    reasons.push(
+      `A ${TYPE_LABEL[type] ?? type} ${noun} needs the live skill; this prototype has ${[...new Set(pool.map((s) => TYPE_LABEL[s.type]))].join(", ")} ${noun}s.`,
+    );
+  if (forecast && forecast.replace(/\s*[-—–]\s*/, "–") !== PROTOTYPE_FORECAST)
+    reasons.push(`The loaded GVR data is built on a ${PROTOTYPE_FORECAST} forecast; a ${forecast} version needs a live build.`);
+  if (reasons.length) return { ok: false, reasons };
+  const entry = pool.find((s) => s.type === type && s.region === region);
+  return entry ? { ok: true, entry } : { ok: false, reasons: [`No ${TYPE_LABEL[type]} ${noun} for ${region} is available in this prototype.`] };
+}
+
+/** What can be built, for the brief card's note. */
+export function coverageSummary(skill: Skill): string {
+  const pool = SAMPLES.filter((s) => s.skill === skill);
+  const types = [...new Set(pool.map((s) => TYPE_LABEL[s.type]))].join(", ");
+  const regions = [...new Set(pool.map((s) => s.region))].join(" and ");
+  return `${PROTOTYPE_MARKET} · ${types} · ${regions} · ${PROTOTYPE_FORECAST}`;
 }
 
 export function sampleByKey(key: string): SampleEntry {

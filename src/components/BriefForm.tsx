@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { CheckCircle2, ClipboardList, FileText, Paperclip, Presentation, X } from "lucide-react";
 import type { BriefDraft, Intake, SourceChoice } from "../types";
 import { SKILL_NOUN } from "../types";
-import { FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import { coverage, coverageSummary, FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
 import { useStore } from "../state/store";
 import { cx } from "../lib/util";
 import { sourceList } from "./BuildCard";
@@ -47,9 +47,13 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
     d.sources.urls && !urls.length && "web page links",
   ].filter(Boolean) as string[];
 
+  // Check the answers against what this prototype really has; never swap in a different output.
+  const cov = !missing.length && d.type ? coverage(d.skill, d.type, d.region.trim(), d.market.trim(), d.forecast.trim()) : null;
+  const blocked = cov && !cov.ok ? cov.reasons : [];
+
   const submit = () => {
     setTried(true);
-    if (missing.length) return;
+    if (missing.length || blocked.length) return;
     confirmIntake(threadId, msgId, { ...d, urls });
   };
 
@@ -272,9 +276,25 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
         </Field>
       </div>
 
+      {blocked.length > 0 && (
+        <div className="mx-5 mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[13px] text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+          <p className="font-semibold">This prototype can't build that, and won't substitute another output:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {blocked.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-amber-800 dark:text-amber-200">Available here: {coverageSummary(d.skill)}. Change an answer above to continue.</p>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-3 dark:border-white/5 dark:bg-white/[0.02]">
         <span className={cx("text-xs", tried && missing.length ? "text-rose-600" : "text-slate-500")}>
-          {missing.length ? `Still needed: ${missing.join(", ")}` : "Ready. Nothing is built until you confirm."}
+          {missing.length
+            ? `Still needed: ${missing.join(", ")}`
+            : blocked.length
+              ? "Not available in this prototype"
+              : "Ready. Nothing is built until you confirm."}
         </span>
         <div className="ml-auto flex gap-2">
           <button
@@ -287,7 +307,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
             onClick={submit}
             className={cx(
               "rounded-lg bg-prism-gradient px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
-              missing.length > 0 && "opacity-60",
+              (missing.length > 0 || blocked.length > 0) && "opacity-60",
             )}
           >
             Create {noun}
@@ -309,7 +329,7 @@ function BriefSummary({ intake }: { intake: Intake }) {
     ["Geography", d.region],
     ["Forecast", d.forecast],
     ...(d.type ? [["Length", `${standardLength(d.skill, d.type)} (standard)`] as [string, string]] : []),
-    ["Prepared for", d.includeClient && d.client ? d.client : "No client name"],
+    ["Client name", d.includeClient && d.client ? d.client : "Not added"],
     ...(d.audience ? [["Audience", d.audience] as [string, string]] : []),
     ...(d.question ? [["Decision", d.question] as [string, string]] : []),
     ["Sources", sourceList({ sources: d.sources, files: d.files, urls: d.urls }).join(" · ")],

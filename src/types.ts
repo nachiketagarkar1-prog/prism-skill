@@ -98,6 +98,8 @@ export interface Brief {
   /** "Prepared for" name; omitted unless the user chose to add one. */
   client?: string;
   question: string;
+  /** The decision the client wants supported, if they gave one. */
+  decision?: string;
   forecast: string;
   /** Length as delivered: the type's standard length until the client asks to change it in chat. */
   length?: string;
@@ -115,7 +117,7 @@ export interface BuildState {
   kind: "create" | "update" | "edit-plan";
   brief: Brief;
   stages: Stage[];
-  status: "running" | "done" | "conflict" | "error";
+  status: "running" | "done" | "conflict" | "error" | "not_built";
   /** Delivered version label, once done. */
   version?: string;
   note?: string;
@@ -143,6 +145,8 @@ export interface Version {
   change: string; // revision line
   source: "chat" | "studio";
   files: OutputFile[];
+  /** Report spec after a studio edit plan; the studio renders this version from it. */
+  spec?: unknown;
   /** Sample catalog entry backing this version (working model only). */
   sampleKey: string;
   /** Internal only; the client UI shows at most a one-line summary (deck notes). */
@@ -186,9 +190,20 @@ export interface TurnRequest {
   uploads: string[];
 }
 
-export type TurnResponse = { kind: "answer"; markdown: string; version: string } | { kind: "version"; job: Job; version: Version };
+export type TurnResponse =
+  | { kind: "answer"; markdown: string; version: string }
+  | { kind: "version"; job: Job; version: Version }
+  /** The request can't be carried out by this prototype; nothing was built and no version was made. */
+  | { kind: "not_built"; reasons: string[] };
 
 export type StageListener = (stages: Stage[]) => void;
+
+/** Thrown when the prototype can't carry out a request (no substitute output is produced). */
+export class PrototypeLimitError extends Error {
+  constructor(public reasons: string[]) {
+    super(reasons.join(" "));
+  }
+}
 
 export class VersionConflictError extends Error {
   constructor(

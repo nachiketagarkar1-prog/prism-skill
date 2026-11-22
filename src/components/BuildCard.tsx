@@ -16,13 +16,15 @@ export function BuildCard({ build }: { build: BuildState }) {
   const heading =
     build.status === "done"
       ? `${brief.typeLabel} ${SKILL_NOUN[brief.skill]}${build.kind === "create" ? "" : " updated"}`
-      : build.status === "conflict"
+      : build.status === "conflict" || (build.status === "not_built" && build.kind === "edit-plan")
         ? "Edit plan not applied"
-        : build.kind === "create"
-          ? `Building your ${brief.typeLabel} ${SKILL_NOUN[brief.skill]}`
-          : build.kind === "edit-plan"
-            ? "Applying your studio edit plan"
-            : `Updating the ${brief.typeLabel} ${SKILL_NOUN[brief.skill]}`;
+        : build.status === "not_built"
+          ? `${brief.typeLabel} ${SKILL_NOUN[brief.skill]} not built`
+          : build.kind === "create"
+            ? `Building your ${brief.typeLabel} ${SKILL_NOUN[brief.skill]}`
+            : build.kind === "edit-plan"
+              ? "Applying your studio edit plan"
+              : `Updating the ${brief.typeLabel} ${SKILL_NOUN[brief.skill]}`;
 
   return (
     <div className="w-full max-w-[760px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
@@ -50,6 +52,9 @@ export function BuildCard({ build }: { build: BuildState }) {
             <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-400/10 dark:text-amber-300">
               Version conflict
             </span>
+          )}
+          {build.status === "not_built" && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">Not built</span>
           )}
           {build.status === "error" && (
             <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-400/10 dark:text-rose-300">Stopped</span>
@@ -113,6 +118,12 @@ export function BuildCard({ build }: { build: BuildState }) {
         </div>
       )}
       {build.status === "error" && <div className="mx-5 mb-4 text-sm text-rose-600">{build.error}</div>}
+      {build.status === "not_built" && (
+        <div className="mx-5 my-4 flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+          <p>{build.error}</p>
+        </div>
+      )}
 
       {/* Delivery */}
       {build.status === "done" && job && version && (
@@ -121,9 +132,15 @@ export function BuildCard({ build }: { build: BuildState }) {
             <p className="text-[14.5px] leading-relaxed text-slate-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: mdInline(build.note) }} />
           )}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3">
-            <FileCard file={version.files[0]} onOpen={() => openPanel(job.id, version.version, "file")} />
-            <StudioCard file={version.files[1]} skill={brief.skill} onOpen={() => openPanel(job.id, version.version, "studio")} />
-            {version.files[2]?.kind === "xlsx" && <ExcelCard file={version.files[2]} onOpen={() => openPanel(job.id, version.version, "excel")} />}
+            {version.files.map((f) =>
+              f.kind === "studio" ? (
+                <StudioCard key={f.name} file={f} skill={brief.skill} onOpen={() => openPanel(job.id, version.version, "studio")} />
+              ) : f.kind === "xlsx" ? (
+                <ExcelCard key={f.name} file={f} onOpen={() => openPanel(job.id, version.version, "excel")} />
+              ) : (
+                <FileCard key={f.name} file={f} onOpen={() => openPanel(job.id, version.version, "file")} />
+              ),
+            )}
           </div>
         </div>
       )}

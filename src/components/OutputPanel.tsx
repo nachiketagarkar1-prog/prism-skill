@@ -65,6 +65,53 @@ function installSendButton(frame: HTMLIFrameElement | null, onClick: () => void)
   }
 }
 
+/**
+ * Report studios render live from their embedded spec (window.SPEC_IN). Load them with the brief applied:
+ * the client name only if the user gave one, their decision question, and for studio-edited versions the
+ * edited spec. This goes through the skill's own renderer, so nothing is invented.
+ */
+interface StudioPatch {
+  client?: string;
+  decision?: string;
+  spec?: unknown;
+  version: string;
+}
+
+function patchStudio(html: string, p: StudioPatch): string | null {
+  if (!html.includes("<script>window.SPEC_IN=") || !html.includes(";window.META=")) return null;
+  const data = JSON.stringify(p).replace(/</g, "\\u003c");
+  const fn =
+    "function(s){var p=window.__prism;if(p.spec)s=p.spec;s.meta=s.meta||{};s.brief=s.brief||{};" +
+    "if(p.client){s.meta.prepared_for=p.client;s.brief.client=p.client}else{delete s.meta.prepared_for;delete s.brief.client}" +
+    "if(p.decision)s.brief.question=p.decision;s.meta.version=p.version;return s}";
+  return html
+    .replace("<script>window.SPEC_IN=", `<script>window.__prism=${data};window.__prismPatch=${fn};</script><script>window.SPEC_IN=window.__prismPatch(`)
+    .replace(";window.META=", ");window.META=")
+    .replace(";window.ASSETS=", ";window.META.version=window.__prism.version;window.ASSETS=");
+}
+
+function useStudioDoc(url: string, patch: StudioPatch | null): { srcDoc?: string; loading: boolean } {
+  const [doc, setDoc] = useState<{ key: string; html: string } | null>(null);
+  const key = patch ? url + JSON.stringify(patch) : "";
+  useEffect(() => {
+    if (!patch) return;
+    let live = true;
+    fetch(url)
+      .then((r) => r.text())
+      .then((html) => {
+        const out = patchStudio(html, patch);
+        if (live) setDoc({ key, html: out ?? html });
+      })
+      .catch(() => live && setDoc(null));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  if (!patch) return { loading: false };
+  return doc?.key === key ? { srcDoc: doc.html, loading: false } : { loading: true };
+}
+
 export function OutputPanel({ panel }: { panel: PanelState }) {
   const { state, setPanel, sendEditPlan } = useStore();
   const job = state.jobs[panel.jobId];
@@ -84,12 +131,23 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
     btn.style.opacity = sending ? "0.6" : "";
   }, [sending]);
 
+  const jobForPatch = state.jobs[panel.jobId];
+  const vForPatch = jobForPatch?.versions.find((v) => v.version === panel.version) ?? jobForPatch?.versions[jobForPatch.versions.length - 1];
+  const studioForPatch = vForPatch?.files.find((f) => f.kind === "studio");
+  const studioDoc = useStudioDoc(
+    studioForPatch?.url ?? "",
+    jobForPatch?.skill === "report" && vForPatch
+      ? { client: jobForPatch.brief.client, decision: jobForPatch.brief.decision, spec: vForPatch.spec, version: vForPatch.version }
+      : null,
+  );
+
   if (!job) return null;
 
   const version = job.versions.find((v) => v.version === panel.version) ?? job.versions[job.versions.length - 1];
   const latest = job.versions[job.versions.length - 1];
   const isLatest = version.version === latest.version;
-  const [primary, studio] = version.files;
+  const primary = version.files.find((f) => f.kind === "pdf" || f.kind === "pptx");
+  const studio = version.files.find((f) => f.kind === "studio")!;
   // Versions built before the Excel export existed have no xlsx file.
   const excel = version.files.find((f) => f.kind === "xlsx");
   const isDeck = job.skill === "deck";
@@ -106,7 +164,8 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
   const onSend = () => {
     const raw = readPlan(frameRef.current) ?? { skill: `gvr-${job.skill}-builder`, action: "edit", operations: [], comments: [] };
     // The bundled sample studios carry their own embedded version; the platform version is the one open here.
-    const plan: EditPlan = { ...raw, base_version: version.version, sample_base_version: raw.base_version, spec: undefined };
+    // Report plans carry the full edited spec (GVRStudio.plan()); keep it so the edits can be applied.
+    const plan: EditPlan = { ...raw, base_version: version.version, sample_base_version: raw.base_version };
     const ops = (Array.isArray(plan.operations) ? plan.operations.length : 0) + (Array.isArray(plan.comments) ? plan.comments.length : 0);
     if (ops === 0) setNotice({ plan, ops });
     else void doSend(plan);
@@ -147,13 +206,15 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
         <Tab active={panel.tab === "studio"} onClick={() => go({ tab: "studio" })} icon={<MonitorPlay className="h-3.5 w-3.5" />}>
           Studio
         </Tab>
-        <Tab
-          active={panel.tab === "file"}
-          onClick={() => go({ tab: "file" })}
-          icon={isDeck ? <Presentation className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
-        >
-          {isDeck ? "Slides" : "PDF"}
-        </Tab>
+        {primary && (
+          <Tab
+            active={panel.tab === "file"}
+            onClick={() => go({ tab: "file" })}
+            icon={isDeck ? <Presentation className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+          >
+            {isDeck ? "Slides" : "PDF"}
+          </Tab>
+        )}
         {excel && (
           <Tab active={panel.tab === "excel"} onClick={() => go({ tab: "excel" })} icon={<FileSpreadsheet className="h-3.5 w-3.5" />}>
             Excel
@@ -163,17 +224,22 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
           Versions <span className="ml-1 rounded bg-slate-100 px-1.5 text-[11px] dark:bg-white/10">{job.versions.length}</span>
         </Tab>
         <div className="ml-auto flex items-center gap-3 py-2 text-xs">
-          <a
-            href={panel.tab === "studio" ? studio.url : primary.url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white"
-          >
-            <ExternalLink className="h-3.5 w-3.5" /> New tab
-          </a>
-          <a href={primary.url} download={primary.name} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white">
-            <Download className="h-3.5 w-3.5" /> {isDeck ? "PPTX" : "PDF"}
-          </a>
+          {/* A report studio opened on its own would miss the brief applied above, so only offer it for presentations. */}
+          {(isDeck || panel.tab !== "studio") && primary && (
+            <a
+              href={panel.tab === "studio" ? studio.url : primary.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> New tab
+            </a>
+          )}
+          {primary && (
+            <a href={primary.url} download={primary.name} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white">
+              <Download className="h-3.5 w-3.5" /> {isDeck ? "PPTX" : "PDF"}
+            </a>
+          )}
           {excel && (
             <a href={excel.url} download={excel.name} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white">
               <Download className="h-3.5 w-3.5" /> Excel
@@ -206,11 +272,12 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
 
       {/* Body */}
       <div className="relative min-h-0 flex-1 bg-slate-100 dark:bg-black/30">
-        {panel.tab === "studio" && (
+        {panel.tab === "studio" && studioDoc.loading && <div className="p-5 text-sm text-slate-500">Loading studio…</div>}
+        {panel.tab === "studio" && !studioDoc.loading && (
           <iframe
-            key={`${studio.url}#${version.version}`}
+            key={`${studio.url}#${version.version}#${studioDoc.srcDoc ? "doc" : "src"}`}
             ref={frameRef}
-            src={studio.url}
+            {...(studioDoc.srcDoc ? { srcDoc: studioDoc.srcDoc } : { src: studio.url })}
             title={`${job.title} studio ${version.version}`}
             className="h-full w-full border-0 bg-white"
             onLoad={() => {
@@ -221,7 +288,13 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
             sandbox="allow-scripts allow-same-origin allow-downloads allow-modals allow-popups allow-forms"
           />
         )}
-        {panel.tab === "file" && !isDeck && (
+        {panel.tab === "file" && !isDeck && primary && job.brief.client && (
+          <div className="bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
+            This prototype's PDF was rendered before your brief, so it has no client name. The studio shows the cover with “Prepared for {job.brief.client}”,
+            and the live build prints it in the PDF.
+          </div>
+        )}
+        {panel.tab === "file" && !isDeck && primary && (
           <object key={primary.url} data={primary.url} type="application/pdf" title={primary.name} className="h-full w-full">
             <div className="grid h-full place-items-center p-8 text-center text-sm text-slate-500">
               <div>
@@ -234,7 +307,7 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
             </div>
           </object>
         )}
-        {panel.tab === "file" && isDeck && <SlidesPreview version={version} />}
+        {panel.tab === "file" && isDeck && primary && <SlidesPreview version={version} />}
         {panel.tab === "excel" && excel && <ExcelPreview file={excel} />}
         {panel.tab === "versions" && <Versions job={job} current={version.version} onOpen={(v) => go({ version: v, tab: "studio" })} />}
       </div>
