@@ -2,6 +2,8 @@
 // sections of the GVR Report Builder and GVR Deck Builder developer guides.
 
 export type Skill = "report" | "deck";
+/** User-facing noun for each skill. Internally the deck skill stays "deck"; users see "presentation". */
+export const SKILL_NOUN: Record<Skill, string> = { report: "report", deck: "presentation" };
 export type ComposerMode = "auto" | "answer" | "report" | "deck";
 export type Region = "Global" | "North America";
 

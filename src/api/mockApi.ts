@@ -36,12 +36,12 @@ const CREATE_STAGES: Record<Skill, StageDef[]> = {
     ["deliver", "Delivering", "Versioned PDF and studio", 500],
   ],
   deck: [
-    ["brief", "Settling the brief", "Deck type, market, geography, years, audience", 900],
+    ["brief", "Settling the brief", "Presentation type, market, geography, years, audience", 900],
     ["evidence", "Gathering evidence", "GVR inputs first, then whitelisted research", 1500],
     ["plan", "Planning the storyline", "Answer first, one message per slide", 1200],
     ["render", "Rendering on the GVR master", "Native shapes and charts, fit warnings cleared", 1500],
     ["qa", "Quality checks", "Visual QA and silent fact-check", 1100],
-    ["studio", "Building the deck studio", "Slides, element map and insights", 800],
+    ["studio", "Building the presentation studio", "Slides, element map and insights", 800],
     ["deliver", "Delivering", "Versioned PPTX and studio", 500],
   ],
 };

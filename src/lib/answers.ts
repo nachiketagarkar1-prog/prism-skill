@@ -1,6 +1,6 @@
 // Canned, source-grounded answers for the working model. Figures are taken from the
 // Blood Bank Serology sample specs bundled with the skills.
-import type { Job } from "../types";
+import { SKILL_NOUN, type Job } from "../types";
 import { TYPE_LABEL } from "../api/catalog";
 
 interface Fact {
@@ -46,10 +46,11 @@ export function answerFromOutput(job: Job, question: string): string {
   const v = job.versions[job.versions.length - 1];
   const kind = job.skill === "deck" ? "deck" : "report";
   const hits = FACTS.filter((f) => f.rx.test(question)).slice(0, 2);
-  const label = `${TYPE_LABEL[job.brief.type]} ${kind} ${v.version}`;
+  const noun = SKILL_NOUN[job.skill];
+  const label = `${TYPE_LABEL[job.brief.type]} ${noun} ${v.version}`;
   if (!hits.length) {
     return [
-      `I couldn't find that in the ${label}. The ${kind} covers market size and growth, segments, regions, competition and go-to-market priorities.`,
+      `I couldn't find that in the ${label}. The ${noun} covers market size and growth, segments, regions, competition and go-to-market priorities.`,
       "",
       `If you need it covered, ask me to **add a section** and I'll research it and build ${nextVersion(v.version)}.`,
     ].join("\n");
@@ -77,9 +78,9 @@ export function genericAnswer(text: string): string {
     "",
     `You asked: _"${text.trim().slice(0, 160)}"_`,
     "",
-    "To turn this into a client-ready output, ask me to **build a report** (paginated PDF plus report studio) or **build a deck** (PowerPoint on the GVR master plus deck studio). For example:",
+    "To turn this into a client-ready output, ask me to **create a report** (paginated PDF plus report studio) or **create a presentation** (PowerPoint on the GVR master plus presentation studio). For example:",
     "",
     "- *Build an executive view report on the blood bank serology market for North America*",
-    "- *Create an opportunity assessment deck for the blood bank serology market*",
+    "- *Create an opportunity assessment presentation for the blood bank serology market*",
   ].join("\n");
 }

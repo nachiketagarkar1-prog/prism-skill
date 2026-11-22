@@ -95,10 +95,10 @@ export function detectIntent(text: string, mode: ComposerMode, hasJob: boolean):
   return { action: "question", skill, type, region, market, explicitSkill };
 }
 
-/** Human label for the composer hint ("Will build: GVR Deck · Executive View · North America"). */
+/** Human label for the composer hint ("Will build: GVR Presentation · Executive View · North America"). */
 export function describeIntent(i: Intent): string | null {
   if (i.action === "answer" || i.action === "question") return null;
-  const parts = [i.skill === "deck" ? "GVR Deck" : "GVR Report"];
+  const parts = [i.skill === "deck" ? "GVR Presentation" : "GVR Report"];
   if (i.type) parts.push(TYPE_LABEL[i.type] ?? i.type);
   if (i.region) parts.push(i.region);
   return parts.join(" · ");

@@ -1,9 +1,9 @@
 import { AlertTriangle, Check, Download, ExternalLink, FileText, Info, Loader2, MonitorPlay, Presentation, Sparkles } from "lucide-react";
-import type { BuildState, OutputFile } from "../types";
+import { SKILL_NOUN, type BuildState, type OutputFile } from "../types";
 import { useStore } from "../state/store";
 import { cx, formatBytes } from "../lib/util";
 
-const SKILL_NAME = { report: "GVR Report Builder", deck: "GVR Deck Builder" } as const;
+const SKILL_NAME = { report: "GVR Report Builder", deck: "GVR Presentation Builder" } as const;
 
 export function BuildCard({ build }: { build: BuildState }) {
   const { state, openPanel } = useStore();
@@ -15,14 +15,14 @@ export function BuildCard({ build }: { build: BuildState }) {
   const Icon = brief.skill === "deck" ? Presentation : FileText;
   const heading =
     build.status === "done"
-      ? `${brief.typeLabel} ${brief.skill}${build.kind === "create" ? "" : " updated"}`
+      ? `${brief.typeLabel} ${SKILL_NOUN[brief.skill]}${build.kind === "create" ? "" : " updated"}`
       : build.status === "conflict"
         ? "Edit plan not applied"
         : build.kind === "create"
-          ? `Building your ${brief.typeLabel} ${brief.skill}`
+          ? `Building your ${brief.typeLabel} ${SKILL_NOUN[brief.skill]}`
           : build.kind === "edit-plan"
             ? "Applying your studio edit plan"
-            : `Updating the ${brief.typeLabel} ${brief.skill}`;
+            : `Updating the ${brief.typeLabel} ${SKILL_NOUN[brief.skill]}`;
 
   return (
     <div className="w-full max-w-[760px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
@@ -203,7 +203,7 @@ export function StudioCard({ file, skill, onOpen }: { file: OutputFile; skill: "
       <div className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-cyan-200">
-          <MonitorPlay className="h-3.5 w-3.5" /> {skill === "deck" ? "Deck studio" : "Report studio"}
+          <MonitorPlay className="h-3.5 w-3.5" /> {skill === "deck" ? "Presentation studio" : "Report studio"}
         </div>
         <div className="mt-1 text-[13px] font-medium leading-snug text-white/95">Ask Prism AI, edit elements and generate chart insights</div>
         <div className="mt-auto flex items-center gap-1.5 pt-2 text-xs font-semibold text-cyan-200 group-hover:text-white">

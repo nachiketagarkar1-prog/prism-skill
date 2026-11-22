@@ -9,7 +9,7 @@ const MODES: { id: ComposerMode; label: string; icon: React.ReactNode; hint: str
   { id: "auto", label: "Auto", icon: <Wand2 className="h-3.5 w-3.5" />, hint: "Detect from the message" },
   { id: "answer", label: "Answer", icon: <MessageCircle className="h-3.5 w-3.5" />, hint: "Grounded answer with citations" },
   { id: "report", label: "Report", icon: <FileText className="h-3.5 w-3.5" />, hint: "GVR Report Builder: PDF + report studio" },
-  { id: "deck", label: "Deck", icon: <Presentation className="h-3.5 w-3.5" />, hint: "GVR Deck Builder: PPTX + deck studio" },
+  { id: "deck", label: "Presentation", icon: <Presentation className="h-3.5 w-3.5" />, hint: "GVR Presentation Builder: PPTX + presentation studio" },
 ];
 
 export function Composer({ draft, setDraft }: { draft: string; setDraft: (s: string) => void }) {

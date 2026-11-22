@@ -52,7 +52,7 @@ function sample(id: string, title: string, ageDays: number): Thread {
         id: `${id}-a`,
         role: "assistant",
         ts: ts + 4000,
-        text: "_History thread (sample). The answer content isn't loaded in this working model. Start a new chat to try the Report and Deck builders._",
+        text: "_History thread (sample). The answer content isn't loaded in this working model. Start a new chat to try the Report and Presentation builders._",
       },
     ],
   };

@@ -206,7 +206,7 @@ export function pickSample(skill: Skill, type: string | undefined, region: Regio
   const byType = pool.filter((s) => s.type === type);
   const exact = byType.find((s) => s.region === region) ?? byType[0];
   if (exact) {
-    const note = exact.region !== region ? `Sample deck is ${exact.region}; a ${region} deck would filter evidence by geography.` : undefined;
+    const note = exact.region !== region ? `Sample presentation is ${exact.region}; a ${region} presentation would filter evidence by geography.` : undefined;
     return { entry: exact, fallbackNote: note };
   }
   const fallbackType = skill === "report" ? "opportunity_assessment" : "market_summary";

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
+import { SKILL_NOUN } from "../types";
 import type { BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
 import { VersionConflictError } from "../types";
 import { api, initialStages, stageDefs } from "../api/mockApi";
@@ -111,7 +112,7 @@ function makeBrief(intent: Intent, text: string): BuildState["brief"] {
   const region = intent.region ?? "Global";
   const { entry, fallbackNote } = pickSample(skill, intent.type, region);
   const assumptions: string[] = [];
-  if (!intent.type) assumptions.push(`No ${skill} type stated, so I built a ${TYPE_LABEL[entry.type]}.`);
+  if (!intent.type) assumptions.push(`No ${SKILL_NOUN[skill]} type stated, so I built a ${TYPE_LABEL[entry.type]}.`);
   if (!intent.region) assumptions.push("No geography stated, so the scope is Global.");
   if (intent.market && !/blood bank/i.test(intent.market))
     assumptions.push(`Working model: the bundled sample covers Blood Bank Serology, not ${intent.market}.`);
@@ -133,7 +134,7 @@ function deliveryNote(job: Job): string {
   const v = job.versions[job.versions.length - 1];
   const f = v.files[0];
   const unit = job.skill === "deck" ? "slides" : "pages";
-  const lines = [`**${job.brief.typeLabel}** ${job.skill}, ${job.brief.region}: ${f.pages} ${unit}.`];
+  const lines = [`**${job.brief.typeLabel}** ${SKILL_NOUN[job.skill]}, ${job.brief.region}: ${f.pages} ${unit}.`];
   if (job.skill === "deck") {
     // The deck note carries a one-line fact-check summary; the report UI shows none.
     lines.push(
@@ -259,7 +260,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             t: "patchMessage",
             threadId,
             msgId: asstId,
-            patch: { text: res.markdown, footnote: `Answered from ${target.skill} ${res.version} · no new version` },
+            patch: { text: res.markdown, footnote: `Answered from ${SKILL_NOUN[target.skill]} ${res.version} · no new version` },
           });
           return;
         }

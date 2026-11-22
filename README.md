@@ -3,7 +3,7 @@
 A working front-end model of **Prism Layer** with the two GVR skills behind the chat:
 
 - **GVR Report Builder**: paginated PDF + interactive report studio
-- **GVR Deck Builder**: PowerPoint on the GVR master + deck studio
+- **GVR Presentation Builder** (the `gvr-deck-builder` skill): PowerPoint on the GVR master + presentation studio
 
 There is no backend yet. A mock API mirrors the platform contract from the developer guides and serves the bundled Blood Bank Serology sample outputs, so the whole flow can be clicked through end to end.
 
@@ -20,7 +20,7 @@ npm run build      # type-check + production build to dist/
 | Flow | What happens |
 |---|---|
 | Ask a question (no output yet) | Mocked grounded answer |
-| "Build an executive view deck…" / "…report for North America" | The skill is detected (or chosen with the **Auto / Answer / Report / Deck** toggle). A live hint shows what will be built. A build card shows the brief and runs the 7 stages, then delivers a 2–4 line note, the PDF/PPTX card and the studio card |
+| "Build an executive view deck…" / "…report for North America" | The skill is detected (or chosen with the **Auto / Answer / Report / Presentation** toggle). A live hint shows what will be built. A build card shows the brief and runs the 7 stages, then delivers a 2–4 line note, the PDF/PPTX card and the studio card |
 | Follow-up question ("Which region grows fastest?") | Answered from the latest output with § / slide references. **No new version** |
 | Follow-up change ("Change the scope to North America only") | Re-plan stages → **next version** (v2, v3…) with a revision line |
 | "Make it a deck" in a report thread | New deck job that inherits the thread's type and geography |

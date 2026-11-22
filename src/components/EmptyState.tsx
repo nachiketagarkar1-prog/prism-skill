@@ -38,7 +38,7 @@ const CARDS: { icon: React.ReactNode; title: string; desc: string; options: Opti
   {
     icon: <Presentation className="h-5 w-5" />,
     title: "Create a presentation",
-    desc: "An editable PowerPoint on the GVR master template plus a deck studio.",
+    desc: "An editable PowerPoint on the GVR master template plus a presentation studio.",
     options: [
       presentation("Market Executive"),
       presentation("Market Snapshot"),
