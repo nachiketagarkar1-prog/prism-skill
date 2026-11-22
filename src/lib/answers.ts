@@ -77,6 +77,9 @@ export function nextVersion(v: string): string {
  * the working model answers from the bundled Blood Bank Serology figures where it can.
  */
 export function genericAnswer(text: string): string {
+  if (/\b(excel|xlsx|spreadsheet|workbook)\b/i.test(text)) {
+    return "Every report and presentation comes with an Excel workbook of its tables, charts and KPIs. Create one first, then ask for the Excel and I'll attach it.";
+  }
   const onSample = /blood bank|serology/i.test(text);
   const hits = FACTS.filter((f) => f.rx.test(text)).slice(0, 2);
   if (onSample && hits.length) {

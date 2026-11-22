@@ -24,6 +24,7 @@ npm run build      # type-check + production build to dist/
 | Follow-up question ("Which region grows fastest?") | Answered from the latest output with § / slide references. **No new version** |
 | Follow-up change ("Change the scope to North America only") | Re-plan stages → **next version** (v2, v3…) with a revision line |
 | "Make it a deck" in a report thread | New deck job that inherits the thread's type and geography |
+| Excel export | Every version ships `<name>_vN_data.xlsx` with all tables, charts and KPIs (see `skills/README.md`). It appears as a third card and as an **Excel** tab with a sheet-by-sheet preview. Asking "can I get the Excel?" attaches it without a new version |
 | Output panel | **Studio** (the real studio HTML, embedded), **PDF** / **Slides** preview, **Versions** (append-only revision history with downloads), version switcher |
 | **Send to Prism** (in the studio toolbar, in place of *Export edit plan*) | Reads the studio's edit plan (`GVRStudio.plan()` for reports, `plan()` for decks), posts it as an edit plan and delivers the next version |
 | Version conflict | Sending a plan from an older version is rejected with "reload the latest studio". Plans are never merged silently |

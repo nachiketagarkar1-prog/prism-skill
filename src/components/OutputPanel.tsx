@@ -1,9 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, Download, ExternalLink, FileText, History, Maximize2, Minimize2, MonitorPlay, Presentation, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  FileText,
+  History,
+  Maximize2,
+  Minimize2,
+  MonitorPlay,
+  Presentation,
+  X,
+} from "lucide-react";
 import { useStore, type PanelState } from "../state/store";
 import type { EditPlan, Job, Version } from "../types";
 import { sampleByKey } from "../api/catalog";
 import { cx, formatBytes } from "../lib/util";
+import { ExcelPreview } from "./ExcelPreview";
 
 interface StudioWindow extends Window {
   GVRStudio?: { plan?: () => EditPlan };
@@ -76,6 +90,8 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
   const latest = job.versions[job.versions.length - 1];
   const isLatest = version.version === latest.version;
   const [primary, studio] = version.files;
+  // Versions built before the Excel export existed have no xlsx file.
+  const excel = version.files.find((f) => f.kind === "xlsx");
   const isDeck = job.skill === "deck";
 
   const go = (patch: Partial<PanelState>) => setPanel({ ...panel, ...patch });
@@ -138,6 +154,11 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
         >
           {isDeck ? "Slides" : "PDF"}
         </Tab>
+        {excel && (
+          <Tab active={panel.tab === "excel"} onClick={() => go({ tab: "excel" })} icon={<FileSpreadsheet className="h-3.5 w-3.5" />}>
+            Excel
+          </Tab>
+        )}
         <Tab active={panel.tab === "versions"} onClick={() => go({ tab: "versions" })} icon={<History className="h-3.5 w-3.5" />}>
           Versions <span className="ml-1 rounded bg-slate-100 px-1.5 text-[11px] dark:bg-white/10">{job.versions.length}</span>
         </Tab>
@@ -153,6 +174,11 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
           <a href={primary.url} download={primary.name} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white">
             <Download className="h-3.5 w-3.5" /> {isDeck ? "PPTX" : "PDF"}
           </a>
+          {excel && (
+            <a href={excel.url} download={excel.name} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white">
+              <Download className="h-3.5 w-3.5" /> Excel
+            </a>
+          )}
         </div>
       </div>
 
@@ -209,6 +235,7 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
           </object>
         )}
         {panel.tab === "file" && isDeck && <SlidesPreview version={version} />}
+        {panel.tab === "excel" && excel && <ExcelPreview file={excel} />}
         {panel.tab === "versions" && <Versions job={job} current={version.version} onOpen={(v) => go({ version: v, tab: "studio" })} />}
       </div>
     </section>

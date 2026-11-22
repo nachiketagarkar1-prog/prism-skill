@@ -14,6 +14,8 @@ export interface SampleEntry {
   baseName: string;
   primary: { url: string; bytes: number; pages: number };
   studio: { url: string };
+  /** Excel export (tables, charts, KPIs) and its JSON preview for the in-app Excel tab. */
+  data: { url: string; preview: string; bytes: number; sheets: number };
   thumb: string;
   /** Contact sheet image (decks) for the slides tab. */
   sheet?: string;
@@ -22,6 +24,26 @@ export interface SampleEntry {
 }
 
 // Relative so the app works from any base path (dev server, static host, artifact).
+// Size and sheet count of each bundled Excel export (regenerate with scripts/build_sample_exports.sh).
+const DATA_META: Record<string, [number, number]> = {
+  GVR_BloodBank_Competitive_Landscape_v3_data: [12311, 4],
+  GVR_BloodBank_Executive_View_v3_data: [17511, 6],
+  GVR_BloodBank_Market_Snapshot_v3_data: [15688, 6],
+  GVR_BloodBank_Market_Summary_v5_data: [40384, 17],
+  GVR_BloodBank_Opportunity_Assessment_v3_data: [29766, 13],
+  BloodBankSerology_ExecutiveView_Global_v1_data: [14422, 6],
+  BloodBankSerology_ExecutiveView_NorthAmerica_v1_data: [13041, 6],
+  BloodBankSerology_MarketSnapshot_Global_v1_data: [16919, 7],
+  BloodBankSerology_MarketSnapshot_NorthAmerica_v1_data: [15846, 7],
+  BloodBankSerology_OpportunityAssessment_Global_v1_data: [36516, 18],
+  BloodBankSerology_OpportunityAssessment_NorthAmerica_v1_data: [26142, 13],
+};
+
+function dataFile(dir: string, name: string) {
+  const [bytes, sheets] = DATA_META[name] ?? [0, 0];
+  return { url: `${dir}${name}.xlsx`, preview: `${dir}${name}.json`, bytes, sheets };
+}
+
 const R = "samples/reports/";
 const D = "samples/decks/";
 const T = "samples/thumbs/";
@@ -60,6 +82,7 @@ function report(
     baseName: file,
     primary: { url: `${R}${file}_v1.pdf`, bytes, pages },
     studio: { url: `${R}${file}_v1_studio.html` },
+    data: dataFile(R, `${file}_v1_data`),
     thumb: `${T}${file}_v1.jpg`,
     factcheck: fc ? { traced: fc[0], total: fc[1] } : null,
     headline,
@@ -79,6 +102,7 @@ function deck(type: DeckType, file: string, bytes: number, pages: number, subtit
     baseName: `GVR_BloodBank_${file.replace(/_v\d+$/, "")}`,
     primary: { url: `${D}GVR_BloodBank_${file}.pptx`, bytes, pages },
     studio: { url: `${D}GVR_BloodBank_${file}_studio.html` },
+    data: dataFile(D, `GVR_BloodBank_${file}_data`),
     thumb: `${T}deck_${sheetKey}_cover.jpg`,
     sheet: `${T}${sheetKey}.jpg`,
     factcheck: fc ? { traced: fc[0], total: fc[1] } : null,

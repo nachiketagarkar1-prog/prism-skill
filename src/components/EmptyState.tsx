@@ -20,8 +20,9 @@ interface Card {
   options: Option[];
 }
 
-const report = (label: string): Option => ({ label, prompt: `Create a ${label} on ${MARKET}` });
-const presentation = (label: string): Option => ({ label, prompt: `Create a ${label} presentation on ${MARKET}` });
+const article = (w: string) => (/^[aeiou]/i.test(w) ? "an" : "a");
+const report = (label: string): Option => ({ label, prompt: `Create ${article(label)} ${label} on ${MARKET}` });
+const presentation = (label: string): Option => ({ label, prompt: `Create ${article(label)} ${label} presentation on ${MARKET}` });
 
 const CARDS: Card[] = [
   {

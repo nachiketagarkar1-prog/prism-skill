@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Download, ExternalLink, FileText, Info, Loader2, MonitorPlay, Presentation, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Download, ExternalLink, FileSpreadsheet, FileText, Info, Loader2, MonitorPlay, Presentation, Sparkles } from "lucide-react";
 import { SKILL_NOUN, type BuildState, type OutputFile } from "../types";
 import { useStore } from "../state/store";
 import { cx, formatBytes } from "../lib/util";
@@ -130,6 +130,7 @@ export function BuildCard({ build }: { build: BuildState }) {
           <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3">
             <FileCard file={version.files[0]} onOpen={() => openPanel(job.id, version.version, "file")} />
             <StudioCard file={version.files[1]} skill={brief.skill} onOpen={() => openPanel(job.id, version.version, "studio")} />
+            {version.files[2]?.kind === "xlsx" && <ExcelCard file={version.files[2]} onOpen={() => openPanel(job.id, version.version, "excel")} />}
           </div>
         </div>
       )}
@@ -142,6 +143,44 @@ function Chip({ label, value }: { label: string; value: string }) {
     <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
       <span className="text-slate-400">{label}</span> {value}
     </span>
+  );
+}
+
+export function ExcelCard({ file, onOpen }: { file: OutputFile; onOpen: () => void }) {
+  return (
+    <div className="group flex overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-emerald-400 hover:shadow-md dark:border-white/10 dark:bg-white/[0.02]">
+      <button
+        onClick={onOpen}
+        className="grid w-[78px] shrink-0 place-items-center bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300"
+        aria-label={`Preview ${file.name}`}
+      >
+        <FileSpreadsheet className="h-8 w-8" strokeWidth={1.5} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col p-3">
+        <div className="flex items-center gap-1.5">
+          <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">XLSX</span>
+          <span className="text-[11px] text-slate-400">
+            {file.sheets} sheets · {formatBytes(file.bytes)}
+          </span>
+        </div>
+        <button
+          onClick={onOpen}
+          className="mt-1 truncate text-left text-[13px] font-medium text-slate-800 hover:text-emerald-700 dark:text-slate-100"
+          title={file.name}
+        >
+          {file.name}
+        </button>
+        <div className="text-[11px] text-slate-500">Tables, charts and KPIs</div>
+        <div className="mt-auto flex gap-3 pt-2 text-xs font-medium">
+          <button onClick={onOpen} className="flex items-center gap-1 text-emerald-700 hover:underline dark:text-emerald-300">
+            <ExternalLink className="h-3.5 w-3.5" /> Preview
+          </button>
+          <a href={file.url} download={file.name} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white">
+            <Download className="h-3.5 w-3.5" /> Download
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 

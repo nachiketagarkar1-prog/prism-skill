@@ -32,6 +32,7 @@ const CREATE_STAGES: Record<Skill, StageDef[]> = {
     ["plan", "Planning chapters", "Lens, object, decision and depth → chapter outline", 1200],
     ["render", "Rendering the report", "Spec → paginated PDF, two-pass contents", 1500],
     ["qa", "Quality checks", "Every figure traced to a source", 1100],
+    ["excel", "Exporting data to Excel", "Tables, charts and KPIs, one sheet each", 700],
     ["studio", "Building the report studio", "Interactive studio from the same spec", 800],
     ["deliver", "Delivering", "Versioned PDF and studio", 500],
   ],
@@ -41,6 +42,7 @@ const CREATE_STAGES: Record<Skill, StageDef[]> = {
     ["plan", "Planning the storyline", "Answer first, one message per slide", 1200],
     ["render", "Rendering on the GVR master", "Native shapes and charts, fit warnings cleared", 1500],
     ["qa", "Quality checks", "Visual QA and silent fact-check", 1100],
+    ["excel", "Exporting data to Excel", "Charts, tables and KPIs, one sheet each", 700],
     ["studio", "Building the presentation studio", "Slides, element map and insights", 800],
     ["deliver", "Delivering", "Versioned PPTX and studio", 500],
   ],
@@ -51,6 +53,7 @@ const UPDATE_STAGES: StageDef[] = [
   ["plan", "Re-planning", "Applying the change to the spec", 1100],
   ["render", "Rendering", "Rebuilding from the updated spec", 1300],
   ["qa", "Quality checks", "Every figure traced to a source", 900],
+  ["excel", "Exporting data to Excel", "Rebuilt from the new version", 500],
   ["studio", "Rebuilding the studio", "New studio for the new version", 600],
   ["deliver", "Delivering", "Previous versions are kept", 400],
 ];
@@ -60,6 +63,7 @@ const EDIT_PLAN_STAGES: StageDef[] = [
   ["apply", "Applying edits", "apply_edits.py on the base version", 1100],
   ["render", "Rendering", "Rebuilding the output", 1200],
   ["qa", "Quality checks", "Every figure traced to a source", 900],
+  ["excel", "Exporting data to Excel", "Rebuilt from the new version", 500],
   ["studio", "Rebuilding the studio", "New studio for the new version", 600],
   ["deliver", "Delivering", "Previous versions are kept", 400],
 ];
@@ -97,6 +101,14 @@ function filesFor(entry: SampleEntry, version: string): OutputFile[] {
       thumb: entry.thumb,
     },
     { kind: "studio", name: `${entry.baseName}_${version}_studio.html`, url: entry.studio.url },
+    {
+      kind: "xlsx",
+      name: `${entry.baseName}_${version}_data.xlsx`,
+      url: entry.data.url,
+      bytes: entry.data.bytes,
+      sheets: entry.data.sheets,
+      preview: entry.data.preview,
+    },
   ];
 }
 

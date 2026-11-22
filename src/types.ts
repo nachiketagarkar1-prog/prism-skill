@@ -25,6 +25,8 @@ export interface ChatMessage {
   build?: BuildState;
   /** Small label under an assistant answer, e.g. "Answered from Deck v2 · no new version". */
   footnote?: string;
+  /** A delivered file shown under the message (e.g. the Excel export asked for in chat). */
+  attachment?: { jobId: string; version: string; kind: "xlsx" };
 }
 
 export interface Thread {
@@ -78,13 +80,16 @@ export interface BuildState {
 /* ---------- Jobs, versions, files ---------- */
 
 export interface OutputFile {
-  kind: "pdf" | "pptx" | "studio";
+  kind: "pdf" | "pptx" | "studio" | "xlsx";
   /** Display filename, versioned (e.g. BloodBankSerology_ExecutiveView_Global_v2.pdf). */
   name: string;
   url: string;
   bytes?: number;
   pages?: number;
   thumb?: string;
+  /** xlsx: number of sheets and the JSON preview used by the Excel tab. */
+  sheets?: number;
+  preview?: string;
 }
 
 export interface Version {

@@ -14,7 +14,7 @@ import { seedThreads } from "../data/seed";
 export interface PanelState {
   jobId: string;
   version: string;
-  tab: "studio" | "file" | "versions";
+  tab: "studio" | "file" | "excel" | "versions";
 }
 
 interface State {
@@ -211,6 +211,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (intent.action === "answer" || (intent.action === "question" && !jobs.length)) {
       dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), text: "" } });
       setTimeout(() => dispatch({ t: "patchMessage", threadId, msgId: asstId, patch: { text: genericAnswer(text) } }), 900);
+      return;
+    }
+
+    // Excel export of an existing output: hand over the version's workbook, no rebuild.
+    if (intent.action === "export" && jobs.length) {
+      const job = (intent.skill && [...jobs].reverse().find((j) => j.skill === intent.skill)) || jobs[jobs.length - 1];
+      const v = job.versions[job.versions.length - 1];
+      const x = v.files.find((f) => f.kind === "xlsx");
+      const label = `${job.brief.typeLabel} ${SKILL_NOUN[job.skill]} ${v.version}`;
+      dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), text: "" } });
+      setTimeout(
+        () =>
+          dispatch({
+            t: "patchMessage",
+            threadId,
+            msgId: asstId,
+            patch: x
+              ? {
+                  text: `Here's the Excel export of the **${label}**: ${x.sheets} sheets with every table, chart and KPI, one sheet each, plus a contents sheet with links.`,
+                  attachment: { jobId: job.id, version: v.version, kind: "xlsx" },
+                  footnote: "Included with every version · no new version",
+                }
+              : { text: `The **${label}** was built before Excel exports were added. Ask for any change and the next version will include one.` },
+          }),
+        600,
+      );
       return;
     }
 

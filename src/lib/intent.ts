@@ -5,7 +5,7 @@ import { TYPE_LABEL } from "../api/catalog";
 
 export interface Intent {
   /** What the turn should do. */
-  action: "answer" | "build" | "change" | "question";
+  action: "answer" | "build" | "change" | "question" | "export";
   skill?: Skill;
   type?: OutputType | "strategy_mapping" | "market_overview" | "gtm_strategy";
   region?: Region;
@@ -17,6 +17,7 @@ export interface Intent {
 const DECK_RX = /\b(deck|slides?|pptx?|power ?point|presentation)\b/i;
 const REPORT_RX = /\b(report|pdf|document|study|write-?up)\b/i;
 const BUILD_RX = /\b(build|create|make|generate|prepare|draft|produce|put together|turn (this|it) into)\b/i;
+const EXCEL_RX = /\b(excel|xlsx|spreadsheet|workbook)\b|\bexport (the )?(data|numbers|figures|tables|charts)\b/i;
 const CHANGE_RX =
   /\b(change|update|add|remove|drop|rename|retitle|move|replace|include|exclude|focus|only|switch|swap|shorten|expand|rebuild|redo|make (it|this|slide|section|the)|convert|hide|instead)\b/i;
 const NA_RX = /\b(north america|n\.\s?america|u\.s\.?|usa|united states|canada|mexico)\b/i;
@@ -92,6 +93,9 @@ export function detectIntent(text: string, mode: ComposerMode, hasJob: boolean):
   }
 
   // Follow-up turn in a thread with a job.
+  // Every version already carries its Excel export, so asking for it never rebuilds.
+  // ("Build a North America deck with the Excel" is still a build: it names a new type or scope.)
+  if (EXCEL_RX.test(text) && !(skill && build && (type || region))) return { action: "export", skill, region, market, explicitSkill };
   if (skill && build) return { action: "build", skill, type, region, market, explicitSkill };
   if (CHANGE_RX.test(text) || (build && (type || region))) return { action: "change", skill, type, region, market, explicitSkill };
   return { action: "question", skill, type, region, market, explicitSkill };
@@ -100,6 +104,7 @@ export function detectIntent(text: string, mode: ComposerMode, hasJob: boolean):
 /** Human label for the composer hint ("Will build: GVR Presentation · Executive View · North America"). */
 export function describeIntent(i: Intent): string | null {
   if (i.action === "answer" || i.action === "question") return null;
+  if (i.action === "export") return "Excel export of the latest version";
   const parts = [i.skill === "deck" ? "GVR Presentation" : "GVR Report"];
   if (i.type) parts.push(TYPE_LABEL[i.type] ?? i.type);
   if (i.region) parts.push(i.region);

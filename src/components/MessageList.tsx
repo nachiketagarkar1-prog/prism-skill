@@ -3,7 +3,8 @@ import { Paperclip } from "lucide-react";
 import type { Thread } from "../types";
 import { AssistantAvatar } from "./PrismLogo";
 import { Markdown } from "./Markdown";
-import { BuildCard } from "./BuildCard";
+import { BuildCard, ExcelCard } from "./BuildCard";
+import { useStore } from "../state/store";
 import { cx } from "../lib/util";
 
 /** `outdent`: hang the assistant avatar in the left gutter (wide layouts only). */
@@ -46,6 +47,7 @@ export function MessageList({ thread, outdent }: { thread: Thread; outdent: bool
               ) : m.text ? (
                 <>
                   <Markdown text={m.text} />
+                  {m.attachment && <Attachment {...m.attachment} />}
                   {m.footnote && <div className="mt-2 text-xs text-slate-400">{m.footnote}</div>}
                 </>
               ) : (
@@ -56,6 +58,17 @@ export function MessageList({ thread, outdent }: { thread: Thread; outdent: bool
         ),
       )}
       <div ref={endRef} />
+    </div>
+  );
+}
+
+function Attachment({ jobId, version }: { jobId: string; version: string }) {
+  const { state, openPanel } = useStore();
+  const file = state.jobs[jobId]?.versions.find((v) => v.version === version)?.files.find((f) => f.kind === "xlsx");
+  if (!file) return null;
+  return (
+    <div className="mt-3 max-w-[380px]">
+      <ExcelCard file={file} onOpen={() => openPanel(jobId, version, "excel")} />
     </div>
   );
 }
