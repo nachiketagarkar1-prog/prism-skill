@@ -4,6 +4,8 @@ import type { AnalystReview, Brief, BriefDraft, OutputType, BuildState, ChatMess
 import { PrototypeLimitError, VersionConflictError } from "../types";
 import { api, dropSampleClient, initialStages, mockApi, stageDefs } from "../api/mockApi";
 import { reviewReasons, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
+import { missingEssentials, describeChanges } from "../lib/brief";
+import { nextVersion } from "../lib/answers";
 import { detectCustomType, detectForecast, detectIntent, detectRegion, type Intent } from "../lib/intent";
 import { genericAnswer } from "../lib/answers";
 import { load, save, uid } from "../lib/util";
@@ -139,6 +141,25 @@ function draftFromIntent(intent: Intent, text: string, uploads: string[], prev?:
   };
 }
 
+/** The brief card's fields for an existing brief (refine after delivery). */
+function draftFromBrief(b: Brief): BriefDraft {
+  return {
+    skill: b.skill,
+    type: b.type,
+    customType: b.type === "custom" ? b.typeLabel : "",
+    market: b.market,
+    region: b.region,
+    forecast: b.forecast,
+    includeClient: !!b.client,
+    client: b.client ?? "",
+    question: b.decision ?? "",
+    sources: b.sources ?? { gvr: true, client: false, urls: false, whitelist: true, web: true },
+    files: b.files ?? [],
+    urls: b.urls ?? [],
+    analystReview: false,
+  };
+}
+
 function briefFromDraft(d: BriefDraft, text: string): Brief {
   const type = d.type as OutputType;
   return {
@@ -201,6 +222,8 @@ const Ctx = createContext<Store | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, init);
   const stateRef = useRef(state);
+  // send() is defined before the build helpers; it reaches createFromDraft through this ref.
+  const createRef = useRef<(threadId: string, draft: BriefDraft, request: string) => void>(() => {});
   stateRef.current = state;
 
   useEffect(() => save(THREADS_KEY, state.threads), [state.threads]);
@@ -281,22 +304,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const crossSkill = intent.action === "change" && intent.explicitSkill && !sameSkill.length;
     const noMatch = intent.action === "build" && !sameSkill.some((j) => !intent.type || j.brief.type === intent.type);
     if (crossSkill || noMatch) {
-      // Ask before building: the brief card collects type, market, geography, client name and sources.
-      // Later builds in the same thread start from its market, geography, client and sources.
+      // Build first from what the request says. Only type, market and geography are essential; if one is
+      // missing, ask just that (no assumed defaults). The full brief is offered after delivery to refine.
       const draft = draftFromIntent(intent, text, uploads, latestJob, crossSkill);
-      const noun = SKILL_NOUN[draft.skill];
-      const what = draft.type ? `${TYPE_LABEL[draft.type]} ${noun}` : noun;
-      dispatch({
-        t: "addMessage",
-        threadId,
-        msg: {
-          id: asstId,
-          role: "assistant",
-          ts: Date.now(),
-          text: `Before I create the ${what}, a few quick questions so it fits your client. I've filled in what your message told me; check it and add anything missing.`,
-          intake: { status: "open", draft },
-        },
-      });
+      const missing = missingEssentials(draft);
+      if (missing.length) {
+        const noun = SKILL_NOUN[draft.skill];
+        const what = draft.type ? `${draft.type === "custom" ? draft.customType || "custom research" : TYPE_LABEL[draft.type]} ${noun}` : noun;
+        const ask =
+          missing.length === 1 && missing[0] === "region"
+            ? `Which geography should the ${what} cover? I'll create it as soon as you pick one.`
+            : `One quick check before I create the ${what}: your message didn't say ${missing.map((m) => (m === "type" ? "which kind" : m === "region" ? "which geography" : "which market")).join(" or ")}.`;
+        dispatch({
+          t: "addMessage",
+          threadId,
+          msg: { id: asstId, role: "assistant", ts: Date.now(), text: ask, intake: { status: "open", mode: "quick", draft } },
+        });
+        return;
+      }
+      createRef.current(threadId, draft, text);
       return;
     }
 
@@ -438,16 +464,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /** Start a skill job from a confirmed brief. */
-  const startBuild = useCallback((threadId: string, brief: Brief) => {
+  const startBuild = useCallback((threadId: string, brief: Brief, onDone?: (job: Job) => void) => {
+    // A brand-new thread may not be in the state snapshot yet (same tick as send()); its history is just the request.
     const thread = stateRef.current.threads.find((t) => t.id === threadId);
-    if (!thread) return;
     const asstId = uid();
     const build: BuildState = { kind: "create", brief, stages: initialStages(stageDefs.create[brief.skill]), status: "running" };
     dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), build } });
     api
       .startJob(
         brief.skill,
-        { thread_id: threadId, messages: toApiMessages(thread), uploads: brief.files ?? [], type: brief.type, region: brief.region },
+        { thread_id: threadId, messages: thread ? toApiMessages(thread) : [{ role: "user", text: brief.question, ts: Date.now() }], uploads: brief.files ?? [], type: brief.type, region: brief.region },
         brief,
         (stages) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { stages } }),
       )
@@ -456,6 +482,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ t: "linkJob", threadId, jobId: job.id });
         dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { status: "done", jobId: job.id, version: version.version, note: deliveryNote(job) } });
         dispatch({ t: "panel", panel: { jobId: job.id, version: version.version, tab: "studio" } });
+        onDone?.(job);
       })
       .catch((e: Error) =>
         dispatch({
@@ -467,41 +494,142 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       );
   }, []);
 
+  /** After delivery: offer the full brief so the client can tailor the next version. */
+  const offerRefine = useCallback((threadId: string, job: Job) => {
+    const v = job.versions[job.versions.length - 1].version;
+    dispatch({
+      t: "addMessage",
+      threadId,
+      msg: {
+        id: uid(),
+        role: "assistant",
+        ts: Date.now(),
+        text: `Your ${job.brief.typeLabel} ${SKILL_NOUN[job.skill]} (${v}) is ready. Want to tailor it? Add a client name for the cover, the decision it should support, other sources or a different scope, and I'll create ${nextVersion(v)}.`,
+        intake: { status: "open", mode: "refine", jobId: job.id, draft: draftFromBrief(job.brief) },
+      },
+    });
+  }, []);
+
+  /** Send a brief to a GVR analyst (instead of building) and offer the full brief to add details for them. */
+  const sendToAnalyst = useCallback((threadId: string, brief: Brief, reasons: string[], request?: string) => {
+    const reviewMsgId = uid();
+    const review: AnalystReview = {
+      id: `REV-${uid().slice(0, 6).toUpperCase()}`,
+      brief,
+      reasons: reasons.length ? reasons : ["You asked for an analyst to validate this before delivery."],
+      status: "submitted",
+      submittedAt: Date.now(),
+      request,
+    };
+    dispatch({
+      t: "addMessage",
+      threadId,
+      msg: {
+        id: reviewMsgId,
+        role: "assistant",
+        ts: Date.now(),
+        text: `This needs validation beyond the loaded GVR report, so I've sent it to a GVR analyst instead of building it automatically. You'll see the ${SKILL_NOUN[brief.skill]} here once it's validated.`,
+        review,
+      },
+    });
+    dispatch({
+      t: "addMessage",
+      threadId,
+      msg: {
+        id: uid(),
+        role: "assistant",
+        ts: Date.now(),
+        text: "Want to give the analyst more to work with? Add a client name, the decision it should support or other sources, and I'll update the request.",
+        intake: { status: "open", mode: "refine", reviewMsgId, draft: { ...draftFromBrief(brief), analystReview: true } },
+      },
+    });
+  }, []);
+
+  /** Create from a brief: build automatically when the loaded GVR report covers it, otherwise go to an analyst. */
+  const createFromDraft = useCallback(
+    (threadId: string, draft: BriefDraft, request: string) => {
+      const brief = briefFromDraft(draft, request);
+      const reasons = reviewReasons(draft);
+      if (draft.analystReview || reasons.length) return sendToAnalyst(threadId, brief, reasons);
+      startBuild(threadId, brief, (job) => offerRefine(threadId, job));
+    },
+    [startBuild, sendToAnalyst, offerRefine],
+  );
+  createRef.current = createFromDraft;
+
   const confirmIntake = useCallback(
     (threadId: string, msgId: string, draft: BriefDraft) => {
       const thread = stateRef.current.threads.find((t) => t.id === threadId);
       const idx = thread?.messages.findIndex((m) => m.id === msgId) ?? -1;
-      // The request that opened the card is the user turn just before it.
-      const request = idx > 0 ? (thread!.messages[idx - 1].text ?? "") : "";
-      dispatch({ t: "patchMessage", threadId, msgId, patch: { intake: { status: "confirmed", draft } } });
-      const brief = briefFromDraft(draft, request);
-      // Needs validation (client documents, external web data, data beyond the GVR report, custom scope),
-      // or the client asked for it: send to a GVR analyst instead of building automatically.
-      const reasons = reviewReasons(draft);
-      if (draft.analystReview || reasons.length) {
-        const review: AnalystReview = {
-          id: `REV-${uid().slice(0, 6).toUpperCase()}`,
-          brief,
-          reasons: reasons.length ? reasons : ["You asked for an analyst to validate this before delivery."],
-          status: "submitted",
-          submittedAt: Date.now(),
-        };
-        dispatch({
-          t: "addMessage",
-          threadId,
-          msg: {
-            id: uid(),
-            role: "assistant",
-            ts: Date.now(),
-            text: `I've sent this to a GVR analyst rather than building it automatically. Nothing is delivered until the analyst has validated it; you'll see the ${SKILL_NOUN[brief.skill]} here when it's ready.`,
-            review,
-          },
-        });
+      const intake = idx >= 0 ? thread!.messages[idx].intake : undefined;
+      dispatch({ t: "patchMessage", threadId, msgId, patch: { intake: { ...intake, status: "confirmed", draft } } });
+
+      // Refine an analyst request: update it in place.
+      if (intake?.mode === "refine" && intake.reviewMsgId) {
+        const rm = thread!.messages.find((m) => m.id === intake.reviewMsgId);
+        if (rm?.review) {
+          const brief = briefFromDraft(draft, rm.review.brief.question);
+          const reasons = reviewReasons(draft);
+          dispatch({
+            t: "patchMessage",
+            threadId,
+            msgId: rm.id,
+            patch: { review: { ...rm.review, brief, reasons: reasons.length ? reasons : rm.review.reasons, status: "submitted", submittedAt: Date.now() } },
+          });
+        }
         return;
       }
-      startBuild(threadId, brief);
+
+      // Refine a delivered output: next version, or an analyst if the changes need validation.
+      if (intake?.mode === "refine" && intake.jobId) {
+        const job = stateRef.current.jobs[intake.jobId];
+        if (!job) return;
+        const brief = briefFromDraft(draft, job.brief.question);
+        const changes = describeChanges(job.brief, brief);
+        const latest = job.versions[job.versions.length - 1].version;
+        if (!changes.length && !draft.analystReview) {
+          dispatch({ t: "addMessage", threadId, msg: { id: uid(), role: "assistant", ts: Date.now(), text: `Nothing changed, so ${latest} stays as it is.` } });
+          return;
+        }
+        const reasons = reviewReasons(draft);
+        if (draft.analystReview || reasons.length) return sendToAnalyst(threadId, brief, reasons, `Refine ${latest}: ${changes.join(", ") || "validate"}`);
+        const asstId = uid();
+        const build: BuildState = { kind: "update", jobId: job.id, brief, stages: initialStages(stageDefs.update), status: "running" };
+        dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), build } });
+        const change = `Brief refined: ${changes.join(", ")}`;
+        api
+          .refineJob(job.id, brief, change, (stages) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { stages } }))
+          .then((res) => {
+            dispatch({ t: "setJob", job: res.job });
+            dispatch({
+              t: "patchBuild",
+              threadId,
+              msgId: asstId,
+              patch: {
+                status: "done",
+                brief: res.job.brief,
+                version: res.version.version,
+                note: `${res.version.version}: ${change}. ${deliveryNote(res.job)}`,
+              },
+            });
+            dispatch({ t: "panel", panel: { jobId: res.job.id, version: res.version.version, tab: "studio" } });
+          })
+          .catch((e: Error) =>
+            dispatch({
+              t: "patchBuild",
+              threadId,
+              msgId: asstId,
+              patch: e instanceof PrototypeLimitError ? { status: "not_built", error: e.message } : { status: "error", error: e.message },
+            }),
+          );
+        return;
+      }
+
+      // Quick question answered (or an older full brief card): create now.
+      const request = idx > 0 ? (thread!.messages[idx - 1].text ?? "") : "";
+      createFromDraft(threadId, draft, request);
     },
-    [startBuild],
+    [createFromDraft, sendToAnalyst],
   );
 
   const setReviewStatus = useCallback((threadId: string, msgId: string, status: AnalystReview["status"]) => {

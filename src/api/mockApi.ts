@@ -17,6 +17,7 @@ export interface PrismApi {
   startJob(skill: Skill, req: StartJobRequest, brief: Brief, onStage: StageListener): Promise<{ job: Job; version: Version }>;
   postTurn(jobId: string, req: TurnRequest, onStage: StageListener): Promise<TurnResponse>;
   submitEditPlan(jobId: string, plan: EditPlan, onStage: StageListener): Promise<{ job: Job; version: Version }>;
+  refineJob(jobId: string, brief: Brief, change: string, onStage: StageListener): Promise<{ job: Job; version: Version }>;
   listVersions(jobId: string): Promise<Version[]>;
   getJob(jobId: string): Job | undefined;
 }
@@ -247,6 +248,22 @@ class MockPrismApi implements PrismApi {
     job.versions.push(v);
     this.persist();
     return { kind: "version", job: { ...job }, version: v };
+  }
+
+  /** Next version from a refined brief (client name, decision, scope, sources). Built only if the loaded GVR report covers it. */
+  async refineJob(jobId: string, brief: Brief, change: string, onStage: StageListener) {
+    const job = this.jobs[jobId];
+    if (!job) throw new Error(`Unknown job ${jobId}`);
+    const cov = coverage(job.skill, brief.type, brief.region, brief.market, brief.forecast, brief.typeLabel);
+    if (!cov.ok) throw new PrototypeLimitError(cov.reasons);
+    await runStages(UPDATE_STAGES, onStage, this.speed);
+    const latest = job.versions[job.versions.length - 1];
+    job.brief = brief;
+    job.title = `${brief.market} · ${brief.typeLabel}`;
+    const v = makeVersion(cov.entry, brief, nextVersion(latest.version), change, "chat");
+    job.versions.push(v);
+    this.persist();
+    return { job: { ...job }, version: v };
   }
 
   async submitEditPlan(jobId: string, plan: EditPlan, onStage: StageListener) {

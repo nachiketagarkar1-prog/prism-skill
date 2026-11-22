@@ -80,7 +80,7 @@ export function Composer({
         {hint && (
           <span className="flex items-center gap-1.5 rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300">
             <Wand2 className="h-3.5 w-3.5" />{" "}
-            {intent?.action === "change" ? "Will update" : intent?.action === "export" ? "Will attach" : "Next: a few questions, then"}: {hint}
+            {intent?.action === "change" ? "Will update" : intent?.action === "export" ? "Will attach" : "Will build"}: {hint}
             {intent?.action === "export" && " · no new version"}
           </span>
         )}

@@ -70,6 +70,15 @@ export interface AnalystReview {
 export interface Intake {
   status: "open" | "confirmed" | "cancelled";
   draft: BriefDraft;
+  /**
+   * quick: only the essentials missing from the request (type, market, geography), asked before building.
+   * refine: the full brief, shown after delivery (or after sending to an analyst) to tailor the next version.
+   * Missing on cards saved by older builds, which used the full brief before building.
+   */
+  mode?: "quick" | "refine";
+  /** refine: the job the brief belongs to (its next version), or the analyst review it updates. */
+  jobId?: string;
+  reviewMsgId?: string;
 }
 
 /** What the brief card collects. Empty strings mean "not answered yet". */
