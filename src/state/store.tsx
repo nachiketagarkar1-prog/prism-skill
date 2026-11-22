@@ -90,7 +90,7 @@ function init(): State {
     activeId: threads[0]?.id ?? null,
     jobs: load(JOBS_KEY, {}),
     panel: null,
-    dark: load(DARK_KEY, false),
+    dark: load(DARK_KEY, typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches),
   };
 }
 

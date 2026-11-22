@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AppWindow, ChevronDown, MessageSquare, Moon, Plus, RotateCcw, SlidersHorizontal, Sun, X } from "lucide-react";
 import { useStore } from "../state/store";
 import { cx, groupByAge } from "../lib/util";
@@ -9,6 +10,7 @@ const ORDER = ["Today", "Previous 7 days", "Previous 30 days", "Older"];
 /** `docked`: shown in the layout on md+ screens; otherwise it is an overlay opened from the header. */
 export function Sidebar({ open, onClose, docked }: { open: boolean; onClose: () => void; docked: boolean }) {
   const { state, newChat, openThread, toggleDark, resetDemo } = useStore();
+  const [armReset, setArmReset] = useState(false);
   const groups = new Map<string, Thread[]>();
   [...state.threads]
     .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -98,8 +100,17 @@ export function Sidebar({ open, onClose, docked }: { open: boolean; onClose: () 
           <SideLink icon={<SlidersHorizontal className="h-4 w-4" />} label="Admin settings" />
           <SideLink
             icon={<RotateCcw className="h-4 w-4" />}
-            label="Reset demo data"
-            onClick={() => confirm("Reset all chats and outputs to the demo seed?") && resetDemo()}
+            label={armReset ? "Click again to reset everything" : "Reset demo data"}
+            onClick={() => {
+              // Two-step confirm in the page itself (confirm() is blocked in some hosts).
+              if (armReset) {
+                resetDemo();
+                setArmReset(false);
+              } else {
+                setArmReset(true);
+                setTimeout(() => setArmReset(false), 4000);
+              }
+            }}
           />
           <div className="mt-2 flex items-center gap-2.5 px-2 py-1.5">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-[#8a6a5c] text-sm font-medium text-white">N</div>

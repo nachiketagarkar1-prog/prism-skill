@@ -21,9 +21,10 @@ export interface SampleEntry {
   headline: string;
 }
 
-const R = "/samples/reports/";
-const D = "/samples/decks/";
-const T = "/samples/thumbs/";
+// Relative so the app works from any base path (dev server, static host, artifact).
+const R = "samples/reports/";
+const D = "samples/decks/";
+const T = "samples/thumbs/";
 
 export const TYPE_LABEL: Record<string, string> = {
   executive_view: "Executive View",
