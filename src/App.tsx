@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ComposerMode } from "./types";
 import { useStore } from "./state/store";
 import { Sidebar } from "./components/Sidebar";
 import { ChatHeader } from "./components/ChatHeader";
@@ -10,6 +11,7 @@ import { OutputPanel } from "./components/OutputPanel";
 export default function App() {
   const { activeThread, state, newChat } = useStore();
   const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState<ComposerMode>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -33,14 +35,15 @@ export default function App() {
             <MessageList thread={activeThread} outdent={!state.panel} />
           ) : (
             <EmptyState
-              onPick={(t) => {
+              onPick={(t, m) => {
                 setDraft(t);
+                setMode(m);
                 requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("main textarea")?.focus());
               }}
             />
           )}
         </div>
-        <Composer draft={draft} setDraft={setDraft} />
+        <Composer draft={draft} setDraft={setDraft} mode={mode} setMode={setMode} />
       </main>
       {state.panel && <OutputPanel panel={state.panel} />}
     </div>

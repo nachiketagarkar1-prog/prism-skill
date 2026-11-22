@@ -1,5 +1,6 @@
 import { FileText, MessageCircle, Presentation } from "lucide-react";
 import { PrismLogo } from "./PrismLogo";
+import type { ComposerMode } from "../types";
 
 // Example market for the prompts: the bundled sample outputs cover Blood Bank Serology.
 const MARKET = "the blood bank serology market";
@@ -10,14 +11,24 @@ interface Option {
   prompt: string;
 }
 
+interface Card {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  /** Composer mode set when an option is picked, so the request goes to the right builder. */
+  mode: ComposerMode;
+  options: Option[];
+}
+
 const report = (label: string): Option => ({ label, prompt: `Create a ${label} on ${MARKET}` });
 const presentation = (label: string): Option => ({ label, prompt: `Create a ${label} presentation on ${MARKET}` });
 
-const CARDS: { icon: React.ReactNode; title: string; desc: string; options: Option[] }[] = [
+const CARDS: Card[] = [
   {
     icon: <MessageCircle className="h-5 w-5" />,
     title: "Ask a grounded question",
     desc: "Market size, players, regulation and trends, with GVR citations.",
+    mode: "answer",
     options: [
       { label: "What is the size of the blood bank serology market?", prompt: "What is the size of the blood bank serology market?" },
       { label: "Regulatory shifts in US medical-device approvals (2024)", prompt: "Regulatory shifts in US medical-device approvals (2024)" },
@@ -27,6 +38,7 @@ const CARDS: { icon: React.ReactNode; title: string; desc: string; options: Opti
     icon: <FileText className="h-5 w-5" />,
     title: "Create a Report",
     desc: "A paginated PDF in GVR report format plus an interactive report studio.",
+    mode: "report",
     options: [
       report("Market Executive View Report"),
       report("Market Snapshot Report"),
@@ -39,6 +51,7 @@ const CARDS: { icon: React.ReactNode; title: string; desc: string; options: Opti
     icon: <Presentation className="h-5 w-5" />,
     title: "Create a presentation",
     desc: "An editable PowerPoint on the GVR master template plus a presentation studio.",
+    mode: "deck",
     options: [
       presentation("Market Executive"),
       presentation("Market Snapshot"),
@@ -49,7 +62,7 @@ const CARDS: { icon: React.ReactNode; title: string; desc: string; options: Opti
   },
 ];
 
-export function EmptyState({ onPick }: { onPick: (text: string) => void }) {
+export function EmptyState({ onPick }: { onPick: (text: string, mode: ComposerMode) => void }) {
   return (
     <div className="mx-auto flex w-full max-w-[1000px] flex-col items-center px-4 pt-[8vh] md:px-8">
       <PrismLogo className="h-10 w-10" />
@@ -69,7 +82,7 @@ export function EmptyState({ onPick }: { onPick: (text: string) => void }) {
               {c.options.map((o) => (
                 <button
                   key={o.label}
-                  onClick={() => onPick(o.prompt)}
+                  onClick={() => onPick(o.prompt, c.mode)}
                   title={o.prompt}
                   className="block w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-[13px] text-slate-700 transition hover:bg-prism-50 hover:text-prism-800 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-prism-500/10"
                 >

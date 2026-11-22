@@ -71,6 +71,7 @@ export function detectIntent(text: string, mode: ComposerMode, hasJob: boolean):
   let skill: Skill | undefined;
   let explicitSkill = false;
   if (mode === "report" || mode === "deck") {
+    // Toggle set by the user (or by picking a home-screen option).
     skill = mode;
     explicitSkill = true;
   } else if (deckWord) {
@@ -81,7 +82,8 @@ export function detectIntent(text: string, mode: ComposerMode, hasJob: boolean):
     explicitSkill = true;
   }
 
-  if (mode === "answer") return { action: "answer", explicitSkill: false, region, market };
+  // The Answer toggle never swallows an explicit "create a report / presentation" request.
+  if (mode === "answer" && !(build && (deckWord || reportWord))) return { action: "answer", explicitSkill: false, region, market };
 
   if (!hasJob) {
     if (skill && (build || type || mode !== "auto")) return { action: "build", skill, type, region, market, explicitSkill };

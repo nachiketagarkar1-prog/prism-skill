@@ -72,15 +72,22 @@ export function nextVersion(v: string): string {
   return `v${parseInt(v.replace(/\D/g, ""), 10) + 1}`;
 }
 
+/**
+ * Answer for a turn with no output in play. In production this comes from Prism's answer engine;
+ * the working model answers from the bundled Blood Bank Serology figures where it can.
+ */
 export function genericAnswer(text: string): string {
-  return [
-    "**Grounded answer (mocked).** In production this reply comes from Prism's GVR-certified answer engine with inline citations.",
-    "",
-    `You asked: _"${text.trim().slice(0, 160)}"_`,
-    "",
-    "To turn this into a client-ready output, ask me to **create a report** (paginated PDF plus report studio) or **create a presentation** (PowerPoint on the GVR master plus presentation studio). For example:",
-    "",
-    "- *Build an executive view report on the blood bank serology market for North America*",
-    "- *Create an opportunity assessment presentation for the blood bank serology market*",
-  ].join("\n");
+  const onSample = /blood bank|serology/i.test(text);
+  const hits = FACTS.filter((f) => f.rx.test(text)).slice(0, 2);
+  if (onSample && hits.length) {
+    return [
+      ...hits.map((h) => `- ${h.report.replace(/\s*\((§|slide)[^)]*\)/g, "")}`),
+      "",
+      "_Source: Grand View Research, Blood Bank Serology Market Report (2026)._",
+    ].join("\n");
+  }
+  if (onSample) {
+    return "The blood bank serology market is **USD 3,329.3 Mn in 2025** and reaches **USD 5,893.1 Mn by 2033** (7.45% CAGR, 2026–2033).\n\n_Source: Grand View Research, Blood Bank Serology Market Report (2026)._";
+  }
+  return "This working model only holds Blood Bank Serology data, so it can't answer that yet. Live answers will come from Prism's GVR-certified answer engine with citations.";
 }

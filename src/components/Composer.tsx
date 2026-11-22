@@ -12,9 +12,18 @@ const MODES: { id: ComposerMode; label: string; icon: React.ReactNode; hint: str
   { id: "deck", label: "Presentation", icon: <Presentation className="h-3.5 w-3.5" />, hint: "GVR Presentation Builder: PPTX + presentation studio" },
 ];
 
-export function Composer({ draft, setDraft }: { draft: string; setDraft: (s: string) => void }) {
+export function Composer({
+  draft,
+  setDraft,
+  mode,
+  setMode,
+}: {
+  draft: string;
+  setDraft: (s: string) => void;
+  mode: ComposerMode;
+  setMode: (m: ComposerMode) => void;
+}) {
   const { send, busy, activeThread, state } = useStore();
-  const [mode, setMode] = useState<ComposerMode>("auto");
   const [uploads, setUploads] = useState<string[]>([]);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
