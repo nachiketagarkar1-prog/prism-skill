@@ -20,5 +20,6 @@ export function describeChanges(a: Brief, b: Brief): string[] {
   if ((a.decision ?? "") !== (b.decision ?? "")) out.push(b.decision ? "decision question added" : "decision question removed");
   const src = (x: Brief) => JSON.stringify([x.sources ?? {}, x.files ?? [], x.urls ?? []]);
   if (src(a) !== src(b)) out.push("sources updated");
+  if (b.tocText) out.push("client's table of contents applied");
   return out;
 }

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
 import { SKILL_NOUN } from "../types";
-import type { AnalystReview, Brief, BriefDraft, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, Thread } from "../types";
+import type { AnalystReview, Brief, BriefDraft, OutputType, BuildState, ChatMessage, ComposerMode, EditPlan, Job, OutlineChapter, Thread } from "../types";
 import { PrototypeLimitError, VersionConflictError } from "../types";
 import { api, dropSampleClient, initialStages, mockApi, stageDefs } from "../api/mockApi";
 import { GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
@@ -9,6 +9,7 @@ import { draftGaps } from "../lib/compose";
 import { nextVersion } from "../lib/answers";
 import { detectCustomType, detectForecast, detectIntent, detectRegion, type Intent } from "../lib/intent";
 import { genericAnswer } from "../lib/answers";
+import { describeOutlineChanges, extractToc, parseOutlineCommand, withoutToc } from "../lib/outline";
 import { load, save, uid } from "../lib/util";
 import { seedThreads } from "../data/seed";
 
@@ -17,7 +18,7 @@ import { seedThreads } from "../data/seed";
 export interface PanelState {
   jobId: string;
   version: string;
-  tab: "studio" | "file" | "excel" | "versions";
+  tab: "studio" | "outline" | "brief" | "file" | "excel" | "versions";
 }
 
 interface State {
@@ -139,11 +140,12 @@ function draftFromIntent(intent: Intent, text: string, uploads: string[], prev?:
     analystReview: false,
     files: [...new Set([...(prev?.brief.files ?? []), ...uploads])],
     urls: [...new Set([...(prev?.brief.urls ?? []), ...urls])],
+    toc: extractToc(text) ?? "",
   };
 }
 
 /** The brief card's fields for an existing brief (refine after delivery). */
-function draftFromBrief(b: Brief): BriefDraft {
+export function draftFromBrief(b: Brief): BriefDraft {
   return {
     skill: b.skill,
     type: b.type,
@@ -158,6 +160,7 @@ function draftFromBrief(b: Brief): BriefDraft {
     files: b.files ?? [],
     urls: b.urls ?? [],
     analystReview: false,
+    toc: "",
   };
 }
 
@@ -177,6 +180,7 @@ function briefFromDraft(d: BriefDraft, text: string): Brief {
     sources: d.sources,
     files: d.sources.client ? d.files : [],
     urls: d.sources.urls ? d.urls : [],
+    ...(d.toc?.trim() ? { tocText: d.toc.trim() } : {}),
   };
 }
 
@@ -219,6 +223,8 @@ interface Store {
   cancelIntake(threadId: string, msgId: string): void;
   setReviewStatus(threadId: string, msgId: string, status: AnalystReview["status"]): void;
   requestReview(threadId: string, jobId: string): void;
+  refineFromDraft(jobId: string, draft: BriefDraft): void;
+  applyOutline(jobId: string, before: OutlineChapter[], outline: OutlineChapter[]): void;
   toggleDark(): void;
   resetDemo(): void;
   busy: boolean;
@@ -268,7 +274,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const history = [...toApiMessages(thread), { role: "user" as const, text, ts: userMsg.ts }];
 
     const jobs = thread.jobIds.map((id) => s.jobs[id]).filter(Boolean);
-    const intent = detectIntent(text, mode, jobs.length > 0);
+    const outlineCmd = jobs.length > 0 && !!parseOutlineCommand(text);
+    const intent = outlineCmd ? { ...detectIntent(withoutToc(text), "auto", true), action: "change" as const } : detectIntent(withoutToc(text), mode, jobs.length > 0);
     const asstId = uid();
 
     // Plain answer.
@@ -308,12 +315,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const sameSkill = jobs.filter((j) => j.skill === intent.skill);
     const latestJob = jobs[jobs.length - 1];
     // "make it a deck" in a thread that only has a report → new deck job with the same scope.
-    const crossSkill = intent.action === "change" && intent.explicitSkill && !sameSkill.length;
-    const noMatch = intent.action === "build" && !sameSkill.some((j) => !intent.type || j.brief.type === intent.type);
+    const crossSkill = !outlineCmd && intent.action === "change" && intent.explicitSkill && !sameSkill.length;
+    const noMatch = !outlineCmd && intent.action === "build" && !sameSkill.some((j) => !intent.type || j.brief.type === intent.type);
     if (crossSkill || noMatch) {
       // Build first from what the request says. Only type, market and geography are essential; if one is
       // missing, ask just that (no assumed defaults). The full brief is offered after delivery to refine.
-      const draft = draftFromIntent(intent, text, uploads, latestJob, crossSkill);
+      const draft = draftFromIntent(intent, withoutToc(text), uploads, latestJob, crossSkill);
+      draft.toc = extractToc(text) ?? "";
       const missing = missingEssentials(draft);
       if (missing.length) {
         const noun = SKILL_NOUN[draft.skill];
@@ -334,7 +342,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     // Follow-up on an existing job: answer from it, or build the next version.
-    const target = (intent.skill && [...sameSkill].pop()) || jobs[jobs.length - 1];
+    const target = (!outlineCmd && intent.skill && [...sameSkill].pop()) || jobs[jobs.length - 1];
     dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), text: "" } });
     let started = false;
     api
@@ -517,7 +525,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         id: uid(),
         role: "assistant",
         ts: Date.now(),
-        text: `Your ${job.brief.typeLabel} ${SKILL_NOUN[job.skill]} (${v}) is ready. Want to tailor it? Add a client name for the cover, the decision it should support, other sources or a different scope, and I'll create ${nextVersion(v)}.`,
+        text: `Your ${job.brief.typeLabel} ${SKILL_NOUN[job.skill]} (${v}) is ready. Make it the client's: change the ${job.skill === "deck" ? "slide outline" : "table of contents"}, add their name or the decision it supports, or just tell me, e.g. “Add a chapter on pricing after chapter 3”. Each change creates ${nextVersion(v)}.`,
         intake: { status: "open", mode: "refine", jobId: job.id, draft: draftFromBrief(job.brief) },
       },
     });
@@ -557,6 +565,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
     });
   }, []);
+
+  /** Build the next version of a job from a changed brief (refined brief, client TOC, edited outline). */
+  const runRefine = useCallback((threadId: string, job: Job, brief: Brief, change: string) => {
+    const asstId = uid();
+    const build: BuildState = { kind: "update", jobId: job.id, brief, stages: initialStages(stageDefs.update), status: "running" };
+    dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), build } });
+    api
+      .refineJob(job.id, brief, change, (stages) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { stages } }))
+      .then((res) => {
+        dispatch({ t: "setJob", job: res.job });
+        dispatch({
+          t: "patchBuild",
+          threadId,
+          msgId: asstId,
+          patch: { status: "done", brief: res.job.brief, version: res.version.version, note: `${res.version.version}: ${change}. ${deliveryNote(res.job)}` },
+        });
+        dispatch({ t: "panel", panel: { jobId: res.job.id, version: res.version.version, tab: "studio" } });
+      })
+      .catch((e: Error) =>
+        dispatch({
+          t: "patchBuild",
+          threadId,
+          msgId: asstId,
+          patch: e instanceof PrototypeLimitError ? { status: "not_built", error: e.message } : { status: "error", error: e.message },
+        }),
+      );
+  }, []);
+
+  /** Refine from the workspace's Brief tab: same as the brief card in chat. */
+  const refineFromDraft = useCallback(
+    (jobId: string, draft: BriefDraft) => {
+      const job = stateRef.current.jobs[jobId];
+      if (!job) return;
+      const brief = briefFromDraft(draft, job.brief.question);
+      const changes = describeChanges(job.brief, brief);
+      const latest = job.versions[job.versions.length - 1].version;
+      if (stateRef.current.activeId !== job.threadId) dispatch({ t: "activate", id: job.threadId });
+      if (draft.analystReview) return sendToAnalyst(job.threadId, brief, draftGaps(draft), `Refine ${latest}: ${changes.join(", ") || "validate"}`);
+      if (!changes.length) {
+        dispatch({ t: "addMessage", threadId: job.threadId, msg: { id: uid(), role: "assistant", ts: Date.now(), text: `Nothing changed, so ${latest} stays as it is.` } });
+        return;
+      }
+      dispatch({ t: "addMessage", threadId: job.threadId, msg: { id: uid(), role: "user", ts: Date.now(), text: `Refine the brief: ${changes.join(", ")}` } });
+      runRefine(job.threadId, job, { ...brief, outline: brief.tocText ? undefined : job.brief.outline }, `Brief refined: ${changes.join(", ")}`);
+    },
+    [runRefine, sendToAnalyst],
+  );
+
+  /** Apply an outline edited in the workspace (the client's own table of contents) as the next version. */
+  const applyOutline = useCallback(
+    (jobId: string, before: OutlineChapter[], outline: OutlineChapter[]) => {
+      const job = stateRef.current.jobs[jobId];
+      if (!job) return;
+      const changes = describeOutlineChanges(before, outline);
+      const what = changes.length ? changes.join("; ") : "outline confirmed";
+      const threadId = job.threadId;
+      if (stateRef.current.activeId !== threadId) dispatch({ t: "activate", id: threadId });
+      dispatch({ t: "addMessage", threadId, msg: { id: uid(), role: "user", ts: Date.now(), text: `Update the table of contents: ${what}` } });
+      runRefine(threadId, job, { ...job.brief, outline, tocText: undefined }, `Table of contents: ${what}`);
+    },
+    [runRefine],
+  );
 
   /** Create from a brief: build automatically when the loaded GVR report covers it, otherwise go to an analyst. */
   const createFromDraft = useCallback(
@@ -607,35 +677,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         const reasons = draftGaps(draft);
         if (draft.analystReview) return sendToAnalyst(threadId, brief, reasons, `Refine ${latest}: ${changes.join(", ") || "validate"}`);
-        const asstId = uid();
-        const build: BuildState = { kind: "update", jobId: job.id, brief, stages: initialStages(stageDefs.update), status: "running" };
-        dispatch({ t: "addMessage", threadId, msg: { id: asstId, role: "assistant", ts: Date.now(), build } });
-        const change = `Brief refined: ${changes.join(", ")}`;
-        api
-          .refineJob(job.id, brief, change, (stages) => dispatch({ t: "patchBuild", threadId, msgId: asstId, patch: { stages } }))
-          .then((res) => {
-            dispatch({ t: "setJob", job: res.job });
-            dispatch({
-              t: "patchBuild",
-              threadId,
-              msgId: asstId,
-              patch: {
-                status: "done",
-                brief: res.job.brief,
-                version: res.version.version,
-                note: `${res.version.version}: ${change}. ${deliveryNote(res.job)}`,
-              },
-            });
-            dispatch({ t: "panel", panel: { jobId: res.job.id, version: res.version.version, tab: "studio" } });
-          })
-          .catch((e: Error) =>
-            dispatch({
-              t: "patchBuild",
-              threadId,
-              msgId: asstId,
-              patch: e instanceof PrototypeLimitError ? { status: "not_built", error: e.message } : { status: "error", error: e.message },
-            }),
-          );
+        runRefine(threadId, job, { ...brief, outline: brief.tocText ? undefined : job.brief.outline }, `Brief refined: ${changes.join(", ")}`);
         return;
       }
 
@@ -643,7 +685,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const request = idx > 0 ? (thread!.messages[idx - 1].text ?? "") : "";
       createFromDraft(threadId, draft, request);
     },
-    [createFromDraft, sendToAnalyst],
+    [createFromDraft, sendToAnalyst, runRefine],
   );
 
   /** Client asks for an analyst on a delivered version (e.g. to validate highlighted gaps). */
@@ -693,6 +735,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelIntake,
       setReviewStatus,
       requestReview,
+      refineFromDraft,
+      applyOutline,
       toggleDark,
       resetDemo,
       busy,
@@ -710,6 +754,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelIntake,
       setReviewStatus,
       requestReview,
+      refineFromDraft,
+      applyOutline,
       toggleDark,
       resetDemo,
       busy,

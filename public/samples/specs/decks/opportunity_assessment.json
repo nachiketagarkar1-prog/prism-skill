@@ -1,0 +1,822 @@
+{
+ "style": "R",
+ "cover": "C",
+ "meta": {
+  "title": "Blood Bank Serology Market: Opportunity Assessment",
+  "kicker": "Global Market Outlook | 2025 Base Year | Forecast to 2033",
+  "subtitle": "Where the USD 2.6 billion of new revenue will come from, and how suppliers can capture it",
+  "date": "20th Nov 2026"
+ },
+ "slides": [
+  {
+   "type": "cover"
+  },
+  {
+   "type": "toc",
+   "items": [
+    {
+     "title": "Executive Summary",
+     "pages": "3"
+    },
+    {
+     "title": "Market Size & Forecast, 2021-2033",
+     "pages": "4-5"
+    },
+    {
+     "title": "Where the Growth Is",
+     "pages": "6-8"
+    },
+    {
+     "title": "Regional Opportunity",
+     "pages": "9"
+    },
+    {
+     "title": "Competitive Position",
+     "pages": "10-11"
+    },
+    {
+     "title": "Opportunities, Risks & Priorities",
+     "pages": "12-13"
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "kicker": "Executive Summary",
+   "title": "A USD 3.3 billion market growing at 7.45% adds USD 2.6 billion by 2033, and the incremental value concentrates in automation, donor screening and Asia Pacific",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 2, Executive Summary, pp. 35-36",
+   "rows": [
+    {
+     "type": "cards",
+     "items": [
+      {
+       "title": "Market opportunity",
+       "value": "USD 3,329.3 Mn \u2192 USD 5,893.1 Mn",
+       "text": "The global market grows at a 7.45% CAGR over 2026-2033, adding USD 2,563.8 Mn of annual revenue by 2033."
+      },
+      {
+       "title": "Fastest-growing product",
+       "value": "Software & services, 9.17%",
+       "text": "Connectivity, middleware and service contracts outgrow reagents (6.99%) as labs automate."
+      },
+      {
+       "title": "Fastest-growing technology",
+       "value": "Gel / column, 8.28%",
+       "text": "Column agglutination adds USD 562.4 Mn; immunoassay adds USD 854.0 Mn, the largest gain."
+      },
+      {
+       "title": "Fastest-growing region",
+       "value": "Asia Pacific, 8.08%",
+       "text": "Asia Pacific adds USD 811.6 Mn and lifts its global share from 28.5% to 29.9%."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "divider",
+   "number": 2,
+   "title": "Market Size & Forecast, 2021-2033"
+  },
+  {
+   "type": "content",
+   "kicker": "Market Size & Forecast, 2021 - 2033",
+   "title": "Revenue rises from USD 3.3 billion in 2025 to USD 5.9 billion by 2033 on recurring, regulation-driven testing rather than discretionary demand",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 5, Table 5, p. 107",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 2.1,
+       "type": "chart",
+       "chart": "column",
+       "categories": [
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026",
+        "2027",
+        "2028",
+        "2029",
+        "2030",
+        "2031",
+        "2032",
+        "2033"
+       ],
+       "series": [
+        {
+         "name": "Revenue (USD Mn)",
+         "values": [
+          2577.87,
+          2740.67,
+          2918.98,
+          3114.63,
+          3329.28,
+          3563.19,
+          3816.46,
+          4089.33,
+          4388.61,
+          4713.81,
+          5069.8,
+          5461.41,
+          5893.08
+         ],
+         "color": "5CCBF5",
+         "point_colors": [
+          null,
+          null,
+          null,
+          null,
+          "351049",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "351049"
+         ]
+        }
+       ],
+       "number_format": "#,##0",
+       "font_size": 8
+      },
+      {
+       "w": 1,
+       "type": "stack",
+       "blocks": [
+        {
+         "type": "stat",
+         "value": "USD 3,329.3 Mn",
+         "label": "Global revenue, 2025"
+        },
+        {
+         "type": "stat",
+         "value": "USD 5,893.1 Mn",
+         "label": "Forecast revenue, 2033",
+         "color": "351049"
+        },
+        {
+         "type": "stat",
+         "value": "7.45%",
+         "label": "CAGR, 2026-2033",
+         "color": "5CCBF5",
+         "text": "Screening and compatibility testing are mandatory for every donation and transfusion."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "divider",
+   "number": 3,
+   "title": "Where the Growth Is"
+  },
+  {
+   "type": "content",
+   "kicker": "Where the Growth Is",
+   "title": "Hospital transfusion labs add the most revenue (USD 1.1 billion), but plasma fractionation labs grow fastest at 8.09%",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 7, Table 9, p. 151",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 1.5,
+       "type": "chart",
+       "label": "Incremental revenue 2025-2033 by end use (USD Mn)",
+       "chart": "bar",
+       "categories": [
+        "Hospital-Based Blood Banks & Transfusion Labs",
+        "Blood Banks & Blood Centers",
+        "Plasma Fractionation Labs",
+        "Reference / Independent Labs",
+        "Other End Users"
+       ],
+       "series": [
+        {
+         "name": "Increment",
+         "values": [
+          1084.4,
+          637.4,
+          497.1,
+          243.3,
+          101.6
+         ],
+         "point_colors": [
+          null,
+          null,
+          "351049",
+          null,
+          null
+         ]
+        }
+       ],
+       "number_format": "#,##0"
+      },
+      {
+       "w": 1,
+       "type": "table",
+       "label": "Growth by end use",
+       "columns": [
+        "End use",
+        "Share 2025",
+        "CAGR"
+       ],
+       "rows": [
+        [
+         "Hospital-based labs",
+         "42.5%",
+         "7.42%"
+        ],
+        [
+         "Blood banks & centers",
+         "26.5%",
+         "7.09%"
+        ],
+        [
+         "Plasma fractionation",
+         "17.4%",
+         "8.09%"
+        ],
+        [
+         "Reference labs",
+         "9.1%",
+         "7.71%"
+        ],
+        [
+         "Other",
+         "4.5%",
+         "6.73%"
+        ]
+       ],
+       "highlight_rows": [
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "kicker": "Where the Growth Is",
+   "title": "Within donor screening, anti-HBc and syphilis grow fastest, while HIV Combo and anti-HBc together add USD 393 million",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 4, Table 4, p. 84",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 1.6,
+       "type": "chart",
+       "label": "TTI serology by marker, 2025 vs 2033 (USD Mn)",
+       "chart": "column",
+       "categories": [
+        "Anti-HBc",
+        "HIV Combo (Ag/Ab)",
+        "HTLV I/II",
+        "Anti-HCV",
+        "Syphilis",
+        "HBsAg",
+        "Other Markers",
+        "Anti-T. Cruzi",
+        "Anti-CMV"
+       ],
+       "series": [
+        {
+         "name": "2025",
+         "values": [
+          218.15,
+          209.22,
+          208.3,
+          181.45,
+          156.0,
+          143.36,
+          71.2,
+          48.11,
+          35.32
+         ]
+        },
+        {
+         "name": "2033",
+         "values": [
+          427.88,
+          392.24,
+          370.32,
+          326.8,
+          296.78,
+          254.59,
+          123.34,
+          88.53,
+          59.93
+         ]
+        }
+       ],
+       "number_format": "#,##0",
+       "font_size": 8
+      },
+      {
+       "w": 1,
+       "type": "table",
+       "label": "CAGR 2026-2033",
+       "columns": [
+        "Marker",
+        "CAGR"
+       ],
+       "rows": [
+        [
+         "Anti-HBc",
+         "8.85%"
+        ],
+        [
+         "Syphilis",
+         "8.43%"
+        ],
+        [
+         "HIV Combo (Ag/Ab)",
+         "8.23%"
+        ],
+        [
+         "Anti-T. Cruzi",
+         "7.98%"
+        ],
+        [
+         "Anti-HCV",
+         "7.69%"
+        ],
+        [
+         "HTLV I/II",
+         "7.51%"
+        ],
+        [
+         "HBsAg",
+         "7.49%"
+        ],
+        [
+         "Other Markers",
+         "7.16%"
+        ],
+        [
+         "Anti-CMV",
+         "6.88%"
+        ]
+       ],
+       "font_size": 9
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "kicker": "Where the Growth Is",
+   "title": "Immunohematology remains the larger testing area at 61.8%, led by RBC phenotyping and ABO & Rh grouping",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 4, Table 3, p. 67",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 1.6,
+       "type": "chart",
+       "label": "Immunohematology serology by test, 2025 vs 2033 (USD Mn)",
+       "chart": "column",
+       "categories": [
+        "RBC Phenotyping",
+        "ABO & Rh Grouping",
+        "Antibody Identification",
+        "Antibody Screening",
+        "Other Specialized",
+        "Crossmatching",
+        "DAT"
+       ],
+       "series": [
+        {
+         "name": "2025",
+         "values": [
+          682.86,
+          581.98,
+          275.53,
+          236.1,
+          108.21,
+          99.12,
+          74.37
+         ]
+        },
+        {
+         "name": "2033",
+         "values": [
+          1200.04,
+          972.71,
+          496.35,
+          402.57,
+          191.14,
+          161.57,
+          128.29
+         ]
+        }
+       ],
+       "number_format": "#,##0",
+       "font_size": 8
+      },
+      {
+       "w": 1,
+       "type": "stack",
+       "blocks": [
+        {
+         "type": "stat",
+         "value": "61.8%",
+         "label": "Immunohematology share, 2025",
+         "text": "Grouping, phenotyping, antibody screening and identification, crossmatching and DAT."
+        },
+        {
+         "type": "stat",
+         "value": "7.69%",
+         "label": "Antibody identification CAGR",
+         "color": "351049",
+         "text": "The fastest-growing immunohematology test, supported by complex antibody workups."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "kicker": "Regional Opportunity",
+   "title": "North America keeps the largest pool (USD 2.4 billion by 2033), but Asia Pacific closes the gap, adding USD 0.8 billion",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026); CAGR 2025-2033 is GVR analysis",
+   "reference": "Chapter 9, Fig. 80-81, pp. 172-173",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 1.4,
+       "type": "chart",
+       "chart": "column",
+       "label": "Revenue by region (USD Mn)",
+       "categories": [
+        "North America",
+        "Europe",
+        "Asia Pacific",
+        "Latin America",
+        "Middle East & Africa"
+       ],
+       "series": [
+        {
+         "name": "2025",
+         "values": [
+          1374.14,
+          823.11,
+          949.99,
+          104.17,
+          77.87
+         ]
+        },
+        {
+         "name": "2033",
+         "values": [
+          2360.7,
+          1474.16,
+          1761.56,
+          171.59,
+          125.07
+         ]
+        }
+       ],
+       "number_format": "#,##0"
+      },
+      {
+       "w": 1,
+       "type": "table",
+       "label": "Regional opportunity",
+       "columns": [
+        "Region",
+        "Increment (USD Mn)",
+        "CAGR 25-33"
+       ],
+       "rows": [
+        [
+         "North America",
+         "986.6",
+         "7.0%"
+        ],
+        [
+         "Europe",
+         "651.1",
+         "7.6%"
+        ],
+        [
+         "Asia Pacific",
+         "811.6",
+         "8.0%"
+        ],
+        [
+         "Latin America",
+         "67.4",
+         "6.4%"
+        ],
+        [
+         "Middle East & Africa",
+         "47.2",
+         "6.1%"
+        ]
+       ],
+       "highlight_rows": [
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "divider",
+   "number": 5,
+   "title": "Competitive Position"
+  },
+  {
+   "type": "content",
+   "kicker": "Competitive Position",
+   "title": "Six suppliers hold 57.9% of global revenue, yet leadership changes country by country, so share is won market by market",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 8, pp. 162-171; Chapter 10, Table 20, p. 294",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 1,
+       "type": "chart",
+       "chart": "bar",
+       "label": "Global company share, 2025 (%)",
+       "categories": [
+        "QuidelOrtho",
+        "Bio-Rad Laboratories",
+        "Werfen (Immucor)",
+        "Abbott Laboratories",
+        "Grifols",
+        "Roche Diagnostics"
+       ],
+       "series": [
+        {
+         "name": "Share",
+         "values": [
+          17.9,
+          11.1,
+          9.3,
+          8.6,
+          6.4,
+          4.6
+         ]
+        }
+       ],
+       "number_format": "0.0\"%\""
+      },
+      {
+       "w": 1.3,
+       "type": "table",
+       "label": "Country leaders, 2025",
+       "columns": [
+        "Country",
+        "Leader",
+        "Share",
+        "No. 2",
+        "Share",
+        "Others"
+       ],
+       "rows": [
+        [
+         "U.S.",
+         "QuidelOrtho",
+         "25.5%",
+         "Werfen (Immucor)",
+         "13.5%",
+         "31.7%"
+        ],
+        [
+         "Canada",
+         "QuidelOrtho",
+         "23.0%",
+         "Roche",
+         "21.5%",
+         "26.4%"
+        ],
+        [
+         "Germany",
+         "Bio-Rad",
+         "18.5%",
+         "Roche",
+         "11.7%",
+         "44.7%"
+        ],
+        [
+         "U.K.",
+         "Grifols",
+         "13.5%",
+         "Bio-Rad",
+         "11.7%",
+         "46.4%"
+        ],
+        [
+         "France",
+         "Bio-Rad",
+         "30.7%",
+         "QuidelOrtho",
+         "8.3%",
+         "47.8%"
+        ],
+        [
+         "Japan",
+         "Abbott",
+         "27.8%",
+         "QuidelOrtho",
+         "25.5%",
+         "25.9%"
+        ],
+        [
+         "China",
+         "QuidelOrtho",
+         "10.8%",
+         "Bio-Rad",
+         "8.6%",
+         "68.0%"
+        ],
+        [
+         "Brazil",
+         "QuidelOrtho",
+         "28.1%",
+         "Bio-Rad",
+         "11.2%",
+         "49.3%"
+        ],
+        [
+         "Saudi Arabia",
+         "Bio-Rad",
+         "15.9%",
+         "Roche",
+         "13.3%",
+         "52.1%"
+        ],
+        [
+         "South Africa",
+         "Bio-Rad",
+         "25.5%",
+         "QuidelOrtho",
+         "14.7%",
+         "41.6%"
+        ]
+       ],
+       "font_size": 8.5,
+       "col_widths": [
+        1.2,
+        1.3,
+        0.7,
+        1.3,
+        0.7,
+        0.7
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "kicker": "Competitive Position",
+   "title": "Recent moves center on regulatory clearances (58.6% of tracked developments), automation launches and transfusion-lab partnerships",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 10, Section 10.6, pp. 295-301",
+   "rows": [
+    {
+     "type": "table",
+     "columns": [
+      "Company",
+      "Date",
+      "Development"
+     ],
+     "rows": [
+      [
+       "Grifols",
+       "Jun 2026",
+       "Launched Evanzys IH, a modular, fully automated immunohematology system"
+      ],
+      [
+       "Grifols",
+       "May 2026",
+       "FDA 510(k) clearance for updated Erytra Eflexis configuration"
+      ],
+      [
+       "QuidelOrtho",
+       "May 2026",
+       "FDA 510(k) clearance for updated ORTHO Optix Reader software"
+      ],
+      [
+       "Grifols / QuidelOrtho",
+       "May 2026",
+       "Early dissolution of joint business; Grifols prioritizes next-generation blood typing"
+      ],
+      [
+       "Roche",
+       "Mar 2026",
+       "FDA listing of Elecsys HBsAg II and HBsAg II Auto Confirm for screening"
+      ],
+      [
+       "Grifols",
+       "Oct 2025",
+       "Began DG Gel card and reagent red cell manufacturing in San Diego"
+      ],
+      [
+       "Grifols / Inpeco",
+       "Mar 2025",
+       "Integrated laboratory automation for transfusion medicine"
+      ],
+      [
+       "Alba Bioscience / Medline",
+       "Mar 2025",
+       "U.S. distribution of Alba blood-bank reagent portfolio"
+      ]
+     ],
+     "col_widths": [
+      1.6,
+      0.9,
+      5
+     ],
+     "align": [
+      "l",
+      "c",
+      "l"
+     ]
+    }
+   ]
+  },
+  {
+   "type": "divider",
+   "number": 6,
+   "title": "Opportunities, Risks & Priorities"
+  },
+  {
+   "type": "content",
+   "kicker": "Opportunities, Risks & Priorities",
+   "title": "Suppliers that combine automation, assured reagent supply and regulatory depth are positioned to capture the incremental USD 2.6 billion",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "reference": "Chapter 3, Section 3.2; Chapter 11, p. 302",
+   "rows": [
+    {
+     "h": 2.4,
+     "cols": [
+      {
+       "type": "cards",
+       "items": [
+        {
+         "title": "Opportunity",
+         "value": "Plasma fractionation testing",
+         "text": "Growing plasma collection requires qualified-donation screening (HBsAg, anti-HIV, anti-HCV) before fractionation."
+        },
+        {
+         "title": "Opportunity",
+         "value": "Specialized reagents for complex compatibility",
+         "text": "Anti-CD38 therapy interference creates need for DTT-treated cells, soluble CD38 and related reagents."
+        }
+       ]
+      },
+      {
+       "type": "cards",
+       "items": [
+        {
+         "title": "Risk",
+         "value": "Uneven infrastructure & QA capacity",
+         "text": "Resource-limited blood services stay manual or semi-automated; advanced systems concentrate in reference labs.",
+         "color": "BDEAFB"
+        },
+        {
+         "title": "Risk",
+         "value": "Regulatory fragmentation",
+         "text": "Assay classification, validation and marker panels differ by country, multiplying technical files and registrations.",
+         "color": "BDEAFB"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "h": 0.9,
+     "type": "callout",
+     "variant": "takeaway",
+     "text": "Prioritize integrated platforms (software & services grow 9.17%), donor-screening and plasma-qualification assays, and Asia Pacific capacity, backed by multi-market regulatory files."
+    }
+   ]
+  },
+  {
+   "type": "closing"
+  }
+ ]
+}

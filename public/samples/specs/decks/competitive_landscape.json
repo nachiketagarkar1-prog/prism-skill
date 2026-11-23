@@ -1,0 +1,387 @@
+{
+ "style": "R",
+ "cover": "C",
+ "meta": {
+  "title": "Blood Bank Serology Market: Competitive Landscape & Benchmarking",
+  "date": "November 2026"
+ },
+ "slides": [
+  {
+   "type": "cover",
+   "title": "Blood Bank Serology Market: Competitive Landscape & Benchmarking",
+   "subtitle": null
+  },
+  {
+   "type": "content",
+   "title": "Global Blood Bank Serology Competitive Landscape",
+   "subtitle": "Company benchmarking across share, portfolio and recent strategy",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "hin": 0.5,
+     "type": "company_grid",
+     "cols": 6,
+     "companies": [
+      "QUIDELORTHO",
+      "BIO-RAD",
+      "WERFEN (IMMUCOR)",
+      "ABBOTT",
+      "GRIFOLS",
+      "ROCHE"
+     ]
+    },
+    {
+     "h": 1,
+     "cols": [
+      {
+       "w": 1,
+       "type": "chart",
+       "label": "Global company share, 2025 (%)",
+       "chart": "donut",
+       "categories": [
+        "QuidelOrtho",
+        "Bio-Rad Laboratories",
+        "Werfen (Immucor)",
+        "Abbott Laboratories",
+        "Grifols",
+        "Roche Diagnostics",
+        "Others"
+       ],
+       "series": [
+        {
+         "name": "2025",
+         "values": [
+          17.9,
+          11.1,
+          9.3,
+          8.6,
+          6.4,
+          4.6,
+          42.1
+         ]
+        }
+       ],
+       "legend": "right"
+      },
+      {
+       "w": 1.1,
+       "type": "numbered",
+       "boxed": false,
+       "items": [
+        {
+         "title": "Market structure",
+         "text": "Moderately concentrated: top six hold 57.9%"
+        },
+        {
+         "title": "Competitive basis",
+         "text": "Portfolio breadth, platform placement, reagent pull-through"
+        },
+        {
+         "title": "Strategy mix",
+         "text": "Regulatory approvals & enhancements = 58.6% of developments"
+        },
+        {
+         "title": "Local leaders",
+         "text": "Wantai (6.9%) and Kehua (5.7%) in China"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "title": "QUIDELORTHO \u2013 Key Analyst Findings",
+   "subtitle": "Blood bank serology portfolio and position",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 0.5,
+       "type": "stack",
+       "blocks": [
+        {
+         "type": "stat",
+         "value": "17.9%",
+         "label": "Global share, 2025",
+         "text": "Leader in U.S. (25.5%), Canada (23.0%), Brazil (28.1%) and China (10.8%)."
+        }
+       ]
+      },
+      {
+       "w": 1,
+       "type": "cards",
+       "cols": 1,
+       "items": [
+        {
+         "title": "Portfolio",
+         "text": "ID-MTS gel cards, ORTHO BIOVUE column cassettes and ORTHO VISION automation."
+        },
+        {
+         "title": "Platforms",
+         "text": "VITROS immunoassays for donor screening (anti-HCV, anti-HBc, HTLV I/II)."
+        },
+        {
+         "title": "Recent move",
+         "text": "May 2026: FDA 510(k) for updated ORTHO Optix Reader software."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "title": "BIO-RAD LABORATORIES \u2013 Key Analyst Findings",
+   "subtitle": "Blood bank serology portfolio and position",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 0.5,
+       "type": "stack",
+       "blocks": [
+        {
+         "type": "stat",
+         "value": "11.1%",
+         "label": "Global share, 2025",
+         "text": "Leader in Germany (18.5%), France (30.7%), Saudi Arabia (15.9%) and South Africa (25.5%)."
+        }
+       ]
+      },
+      {
+       "w": 1,
+       "type": "cards",
+       "cols": 1,
+       "items": [
+        {
+         "title": "Portfolio",
+         "text": "ID-Cards, blood-grouping reagents, reagent red cells and identification panels."
+        },
+        {
+         "title": "Platforms",
+         "text": "IH-500 and IH-1000 automated immunohematology systems."
+        },
+        {
+         "title": "Recent move",
+         "text": "Also supplies serological infectious disease screening products."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "title": "GRIFOLS \u2013 Key Analyst Findings",
+   "subtitle": "Blood bank serology portfolio and position",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "cols": [
+      {
+       "w": 0.5,
+       "type": "stack",
+       "blocks": [
+        {
+         "type": "stat",
+         "value": "6.4%",
+         "label": "Global share, 2025",
+         "text": "Leader in the U.K. (13.5%); expanding automation and U.S. manufacturing."
+        }
+       ]
+      },
+      {
+       "w": 1,
+       "type": "cards",
+       "cols": 1,
+       "items": [
+        {
+         "title": "Portfolio",
+         "text": "DG Gel cards, Erytra / Erytra Eflexis and the new Evanzys IH system (Jun 2026)."
+        },
+        {
+         "title": "Platforms",
+         "text": "San Diego manufacturing of DG Gel cards and reagent red cells since Oct 2025."
+        },
+        {
+         "title": "Recent move",
+         "text": "Early dissolution of joint business with QuidelOrtho (May 2026)."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "title": "Country Leadership Benchmarking, 2025",
+   "subtitle": "Leadership is local: no supplier leads in more than four of ten profiled countries",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "type": "table",
+     "columns": [
+      "Country",
+      "Leader",
+      "Share",
+      "No. 2",
+      "Share",
+      "Others"
+     ],
+     "rows": [
+      [
+       "U.S.",
+       "QuidelOrtho",
+       "25.5%",
+       "Werfen (Immucor)",
+       "13.5%",
+       "31.7%"
+      ],
+      [
+       "Canada",
+       "QuidelOrtho",
+       "23.0%",
+       "Roche",
+       "21.5%",
+       "26.4%"
+      ],
+      [
+       "Germany",
+       "Bio-Rad",
+       "18.5%",
+       "Roche",
+       "11.7%",
+       "44.7%"
+      ],
+      [
+       "U.K.",
+       "Grifols",
+       "13.5%",
+       "Bio-Rad",
+       "11.7%",
+       "46.4%"
+      ],
+      [
+       "France",
+       "Bio-Rad",
+       "30.7%",
+       "QuidelOrtho",
+       "8.3%",
+       "47.8%"
+      ],
+      [
+       "Japan",
+       "Abbott",
+       "27.8%",
+       "QuidelOrtho",
+       "25.5%",
+       "25.9%"
+      ],
+      [
+       "China",
+       "QuidelOrtho",
+       "10.8%",
+       "Bio-Rad",
+       "8.6%",
+       "68.0%"
+      ],
+      [
+       "Brazil",
+       "QuidelOrtho",
+       "28.1%",
+       "Bio-Rad",
+       "11.2%",
+       "49.3%"
+      ],
+      [
+       "Saudi Arabia",
+       "Bio-Rad",
+       "15.9%",
+       "Roche",
+       "13.3%",
+       "52.1%"
+      ],
+      [
+       "South Africa",
+       "Bio-Rad",
+       "25.5%",
+       "QuidelOrtho",
+       "14.7%",
+       "41.6%"
+      ]
+     ],
+     "col_widths": [
+      1.4,
+      1.6,
+      0.8,
+      1.6,
+      0.8,
+      0.8
+     ]
+    }
+   ]
+  },
+  {
+   "type": "content",
+   "title": "Scenario: Entry via Specialized Reagents",
+   "subtitle": "Positioning for a challenger supplier",
+   "source": "Grand View Research, Blood Bank Serology Market Analysis and Segment Forecast to 2033 (2026)",
+   "rows": [
+    {
+     "cols": [
+      {
+       "type": "chart",
+       "label": "Other specialized immunohematology (USD Mn)",
+       "chart": "column",
+       "categories": [
+        "2025",
+        "2029",
+        "2033"
+       ],
+       "series": [
+        {
+         "name": "Value",
+         "values": [
+          108.21,
+          142.54,
+          191.14
+         ]
+        }
+       ],
+       "number_format": "0.0"
+      },
+      {
+       "type": "swot",
+       "strengths": [
+        "Niche expertise in complex antibody workups",
+        "Faster regulatory path than full platforms"
+       ],
+       "weaknesses": [
+        "No installed analyzer base",
+        "Limited distribution reach"
+       ],
+       "opportunities": [
+        "Anti-CD38 interference (AABB bulletin, Mar 2026)",
+        "Reference lab demand"
+       ],
+       "threats": [
+        "Incumbent reagent bundling",
+        "Market-specific validation cost"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "closing"
+  }
+ ]
+}

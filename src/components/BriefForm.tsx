@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CheckCircle2, ClipboardList, FileText, Paperclip, Presentation, UserCheck, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, FileText, ListTree, Paperclip, Presentation, UserCheck, X } from "lucide-react";
 import type { BriefDraft, Intake, SourceChoice } from "../types";
 import { SKILL_NOUN } from "../types";
 import { FORECASTS, GEOGRAPHIES, GVR_FORECAST, OUTPUT_TYPES, standardLength, TYPE_LABEL } from "../api/catalog";
@@ -19,8 +19,28 @@ const SOURCES: { key: keyof SourceChoice; label: string; hint: string }[] = [
 ];
 
 /** The questions asked before a skill runs. Nothing is built until the user confirms. */
-export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId: string; intake: Intake }) {
-  const { confirmIntake, cancelIntake } = useStore();
+export function BriefForm({
+  threadId,
+  msgId,
+  intake,
+  onSubmit,
+  onCancel,
+  onEditOutline,
+  embedded,
+}: {
+  threadId: string;
+  msgId: string;
+  intake: Intake;
+  /** Workspace use: submit the draft directly instead of confirming a chat card. */
+  onSubmit?: (d: BriefDraft) => void;
+  onCancel?: () => void;
+  onEditOutline?: () => void;
+  embedded?: boolean;
+}) {
+  const store = useStore();
+  const confirmIntake = (t: string, m: string, d: BriefDraft) => (onSubmit ? onSubmit(d) : store.confirmIntake(t, m, d));
+  const cancelIntake = (t: string, m: string) => (onCancel ? onCancel() : store.cancelIntake(t, m));
+  const [tocOpen, setTocOpen] = useState(!!intake.draft.toc);
   const [d, setD] = useState<BriefDraft>(intake.draft);
   const [otherGeo, setOtherGeo] = useState(GEOGRAPHIES.includes(intake.draft.region) || !intake.draft.region ? "" : intake.draft.region);
   const [otherFc, setOtherFc] = useState(FORECASTS.includes(intake.draft.forecast) ? "" : intake.draft.forecast);
@@ -71,8 +91,13 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
   };
 
   return (
-    <div className="mt-3 w-full max-w-[760px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-3 dark:border-white/5">
+    <div
+      className={cx(
+        "w-full overflow-hidden bg-white dark:bg-white/[0.03]",
+        embedded ? "flex h-full flex-col" : "mt-3 max-w-[760px] rounded-2xl border border-slate-200 shadow-sm dark:border-white/10",
+      )}
+    >
+      <div className={cx("flex items-center gap-2.5 border-b border-slate-100 px-5 py-3 dark:border-white/5", embedded && "hidden")}>
         <ClipboardList className="h-4 w-4 text-prism-600 dark:text-prism-300" />
         <span className="text-sm font-semibold text-slate-900 dark:text-white">
           {quick ? "Quick question" : forReview ? "Details for the analyst" : refine ? `Refine this ${noun}` : "Brief"}
@@ -97,7 +122,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
         </div>
       </div>
 
-      <div className="space-y-5 px-5 py-4 text-sm">
+      <div className={cx("space-y-5 px-5 py-4 text-sm", embedded && "scroll-thin min-h-0 flex-1 overflow-y-auto")}>
         {show("type") && (
           <>
             <Field label={`What kind of ${noun}?`} required bad={tried && !d.type}>
@@ -245,6 +270,41 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
             </Field>
 
             <Field
+              label="Table of contents"
+              hint={`GVR's outline for this ${noun} type is the starting point. Use the client's own structure instead, or edit it chapter by chapter.`}
+            >
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Pill
+                  on={!tocOpen}
+                  onClick={() => {
+                    setTocOpen(false);
+                    set({ toc: "" });
+                  }}
+                >
+                  {refine ? "Keep the current outline" : "GVR outline"}
+                </Pill>
+                <Pill on={tocOpen} onClick={() => setTocOpen(true)}>
+                  Use the client's TOC
+                </Pill>
+                {onEditOutline && (
+                  <button onClick={onEditOutline} className="ml-1 flex items-center gap-1 text-xs font-medium text-prism-600 hover:underline dark:text-prism-300">
+                    <ListTree className="h-3.5 w-3.5" /> Edit chapter by chapter
+                  </button>
+                )}
+              </div>
+              {tocOpen && (
+                <textarea
+                  aria-label="Client's table of contents"
+                  rows={5}
+                  value={d.toc ?? ""}
+                  onChange={(e) => set({ toc: e.target.value })}
+                  placeholder={"Paste it: one chapter per line, sections indented or numbered\n1. Executive Summary\n2. Market Size and Forecast\n   2.1 By Product\n3. Pricing and Reimbursement"}
+                  className={cx(inputCls, "mt-2 resize-y font-mono text-xs")}
+                />
+              )}
+            </Field>
+
+            <Field
               label="Which sources can I use?"
               required
               bad={tried && !Object.values(d.sources).some(Boolean)}
@@ -360,7 +420,7 @@ export function BriefForm({ threadId, msgId, intake }: { threadId: string; msgId
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-3 dark:border-white/5 dark:bg-white/[0.02]">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-3 dark:border-white/5 dark:bg-white/[0.02]">
         <span className={cx("text-xs", tried && missing.length ? "text-rose-600" : "text-slate-500")}>
           {quick && !tried && askFor.length === 1 && askFor[0] === "region"
             ? "Pick one to start, or type another country or region and press Create."
@@ -414,6 +474,7 @@ function BriefSummary({ intake }: { intake: Intake }) {
     ["Client name", d.includeClient && d.client ? d.client : "Not added"],
     ...(d.question ? [["Decision", d.question] as [string, string]] : []),
     ["Sources", sourceList({ sources: d.sources, files: d.files, urls: d.urls }).join(" · ")],
+    ...(d.toc?.trim() ? [["Contents", `Client's table of contents (${d.toc.trim().split(/\n/).length} lines)`] as [string, string]] : []),
     ...(d.analystReview ? [["Analyst review", "Yes"] as [string, string]] : []),
   ];
   return (

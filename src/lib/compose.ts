@@ -4,6 +4,7 @@
 // by the report skill's own renderer inside the studio.
 import type { Brief, BriefDraft } from "../types";
 import { PROTOTYPE_FORECAST, TYPE_LABEL } from "../api/catalog";
+import { chaptersFromOutline, newSections, type SpecResolver } from "./outline";
 
 /** Label the studio highlights (amber) wherever it appears on a callout. */
 export const GAP_LABEL = "Not from the GVR report";
@@ -43,6 +44,9 @@ export function gapList(b: Brief): string[] {
     gaps.push(`${b.typeLabel}: the analysis specific to this report type isn't in the GVR report; it needs ${from}.`);
   if (b.forecast !== PROTOTYPE_FORECAST)
     gaps.push(`${b.forecast} forecast: the GVR report publishes ${PROTOTYPE_FORECAST}; only published years are used, nothing is interpolated.`);
+  const added = newSections(b.outline);
+  if (added.length)
+    gaps.push(`Sections added for this client (${added.length}): ${added.map((t) => `“${t}”`).join(", ")}. The GVR report doesn't cover them; they need ${from}.`);
   if (b.sources?.client && b.files?.length) gaps.push(`Client documents (${b.files.join(", ")}): cited as client-provided data, not GVR figures.`);
   if (b.sources?.urls && b.urls?.length) gaps.push(`Web pages (${b.urls.length}): cited with URL and date, not GVR figures.`);
   return gaps;
@@ -74,7 +78,12 @@ export function baseSpecFile(b: Brief): string {
   return `samples/specs/blood_bank_${type}_${region}.json`;
 }
 
-export async function composeReport(b: Brief, gaps: string[]): Promise<Spec> {
+const fetchSpec: SpecResolver = async (ref) => {
+  if (ref.src.startsWith("job:")) return undefined;
+  return fetch(ref.src).then((r) => (r.ok ? r.json() : undefined));
+};
+
+export async function composeReport(b: Brief, gaps: string[], resolve: SpecResolver = fetchSpec): Promise<Spec> {
   const forecastTo = Number(b.forecast.slice(-4)) || 2033;
   const subtitle = `${b.typeLabel}: ${b.region}, ${b.forecast}`;
   const meta = {
@@ -103,7 +112,21 @@ export async function composeReport(b: Brief, gaps: string[]): Promise<Spec> {
     .filter(Boolean)
     .join("; ");
 
+  const ctx = { market: b.market, region: b.region, forecast: b.forecast, sources: sourcesLine };
+
   // Another market: there is no GVR data to build on, so lay out the report with every gap stated.
+  if (!isGvrMarket(b.market) && b.outline) {
+    const chapters = await chaptersFromOutline(b.outline, resolve, { ...ctx, noData: true });
+    chapters[0].sections[0].blocks.unshift(summary);
+    return {
+      meta: { ...meta, vertical: "Healthcare", base_year: 2025, unit: "USD Million", scope_lines: [`**Lens:** ${b.typeLabel}`, `**Geography:** ${b.region}`, `**Period:** forecast ${b.forecast}`] },
+      brief,
+      revision,
+      chapters,
+      review_comments: [],
+      conversation_log: [],
+    };
+  }
   if (!isGvrMarket(b.market)) {
     const pending = (what: string) =>
       gap(
@@ -154,13 +177,18 @@ export async function composeReport(b: Brief, gaps: string[]): Promise<Spec> {
   spec.brief = { ...spec.brief, ...brief };
   if (!b.client) delete spec.brief.client;
   spec.revision = revision;
+  // The client's own table of contents, when they gave or edited one: their order and wording, GVR content where it matches.
+  if (b.outline?.length) spec.chapters = (await chaptersFromOutline(b.outline, resolve, ctx)) as Chapter[];
 
   // 1. Executive summary opens with what isn't from the report.
   spec.chapters[0].sections[0].blocks.unshift(summary);
 
   // 2. A geography the report doesn't split: global figures for reference, stated where the numbers start.
   if (!["Global", "North America"].includes(b.region)) {
-    const sizeCh = spec.chapters.find((c) => /market size|market reality|snapshot/i.test(c.title)) ?? spec.chapters[Math.min(2, spec.chapters.length - 1)];
+    const sizeCh =
+      spec.chapters.find((c) => /market size|market reality|snapshot/i.test(c.title)) ??
+      spec.chapters.find((c) => c.sections.some((x) => x.blocks.some((k) => k.type === "figure" || k.type === "kpis"))) ??
+      spec.chapters[Math.min(2, spec.chapters.length - 1)];
     sizeCh.sections[0].blocks.unshift(
       gap(
         `The GVR report has no ${b.region} split. The figures in this chapter are global and shown for reference only; ${b.region} figures need ${sourcesLine.includes("web") ? "cited research" : "added sources"}.`,
@@ -169,7 +197,7 @@ export async function composeReport(b: Brief, gaps: string[]): Promise<Spec> {
   }
 
   // 3. The requested report type, if it isn't one GVR publishes from this report: its own chapter, with the gap stated.
-  if (b.type === "custom" || !["executive_view", "market_snapshot", "opportunity_assessment"].includes(b.type)) {
+  if (!b.outline && (b.type === "custom" || !["executive_view", "market_snapshot", "opportunity_assessment"].includes(b.type))) {
     const label = b.type === "custom" ? b.typeLabel : TYPE_LABEL[b.type];
     const chapter: Chapter = {
       title: label,
@@ -205,7 +233,7 @@ export async function composeReport(b: Brief, gaps: string[]): Promise<Spec> {
 
   // 5. Client documents and web pages the client gave.
   if ((b.sources?.client && b.files?.length) || (b.sources?.urls && b.urls?.length)) {
-    const scope = spec.chapters.find((c) => /scope/i.test(c.title));
+    const scope = spec.chapters.find((c) => /scope|method/i.test(c.title));
     const items = [
       ...(b.sources?.client ? (b.files ?? []).map((f) => `${f} (client-provided data)`) : []),
       ...(b.sources?.urls ? (b.urls ?? []).map((u) => `${u} (web page, cited with date)`) : []),

@@ -4,6 +4,7 @@ import type { ComposerMode } from "../types";
 import { useStore } from "../state/store";
 import { describeIntent, detectIntent } from "../lib/intent";
 import { cx } from "../lib/util";
+import { parseOutlineCommand } from "../lib/outline";
 
 const MODES: { id: ComposerMode; label: string; icon: React.ReactNode; hint: string }[] = [
   { id: "auto", label: "Auto", icon: <Wand2 className="h-3.5 w-3.5" />, hint: "Detect from the message" },
@@ -18,6 +19,7 @@ export function Composer({
   mode,
   setMode,
   showModes = true,
+  compact = false,
 }: {
   draft: string;
   setDraft: (s: string) => void;
@@ -25,6 +27,8 @@ export function Composer({
   setMode: (m: ComposerMode) => void;
   /** False on the home screen, where the mode switch is shown centred under the cards. */
   showModes?: boolean;
+  /** Narrow chat column next to an open output. */
+  compact?: boolean;
 }) {
   const { send, busy, activeThread, state } = useStore();
   const [uploads, setUploads] = useState<string[]>([]);
@@ -33,7 +37,8 @@ export function Composer({
 
   const hasJob = !!activeThread?.jobIds.some((id) => state.jobs[id]);
   const intent = useMemo(() => (draft.trim() ? detectIntent(draft, mode, hasJob) : null), [draft, mode, hasJob]);
-  const hint = intent ? describeIntent(intent) : null;
+  const outlineCmd = hasJob && draft.trim() ? parseOutlineCommand(draft) : null;
+  const hint = outlineCmd ? "table of contents (next version)" : intent ? describeIntent(intent) : null;
 
   useEffect(() => {
     const ta = taRef.current;
@@ -55,13 +60,13 @@ export function Composer({
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-4 pb-3 md:px-8">
+    <div className={cx("mx-auto w-full", compact ? "px-3 pb-3" : "max-w-[1000px] px-4 pb-3 md:px-8")}>
       {/* Mode + intent hint (on the home screen the mode switch sits under the cards instead) */}
       <div className={cx("flex flex-wrap items-center gap-2", (showModes || hint || intent?.action === "question") && "mb-2")}>
-        {showModes && <ModeToggle mode={mode} setMode={setMode} />}
+        {showModes && <ModeToggle mode={mode} setMode={setMode} compact={compact} />}
         {hint && (
           <span className="flex items-center gap-1.5 rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300">
-            <Wand2 className="h-3.5 w-3.5" /> {intent?.action === "change" ? "Will update" : intent?.action === "export" ? "Will attach" : "Will build"}: {hint}
+            <Wand2 className="h-3.5 w-3.5" /> {outlineCmd || intent?.action === "change" ? "Will update" : intent?.action === "export" ? "Will attach" : "Will build"}: {hint}
             {intent?.action === "export" && " · no new version"}
           </span>
         )}
@@ -117,26 +122,32 @@ export function Composer({
                 submit();
               }
             }}
-            placeholder="Ask Prism Layer — market size, players, regulation, trends..."
-            className="max-h-[200px] flex-1 resize-none bg-transparent py-2.5 text-[16px] text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+            placeholder={compact ? "Ask, or say what to change…" : "Ask Prism Layer — market size, players, regulation, trends..."}
+            className={cx(
+              "max-h-[200px] flex-1 resize-none bg-transparent text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100",
+              compact ? "py-2 text-[14px]" : "py-2.5 text-[16px]",
+            )}
           />
           <button
             onClick={submit}
             disabled={!draft.trim() || busy}
-            className="mb-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#a78bfa] to-[#7dd3fc] text-white shadow transition enabled:hover:brightness-105 disabled:opacity-50"
+            className={cx(
+              "mb-0.5 grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#a78bfa] to-[#7dd3fc] text-white shadow transition enabled:hover:brightness-105 disabled:opacity-50",
+              compact ? "h-9 w-9" : "h-11 w-11",
+            )}
             aria-label="Send"
           >
             <ArrowUp className="h-5 w-5" />
           </button>
         </div>
       </div>
-      <p className="mt-2 text-center text-xs text-slate-400">Enter to send · Shift+Enter for newline · Esc to stop · ⌘N new chat</p>
+      <p className={cx("mt-2 text-center text-xs text-slate-400", compact && "hidden")}>Enter to send · Shift+Enter for newline · Esc to stop · ⌘N new chat</p>
     </div>
   );
 }
 
 /** Auto / Answer / Report / Presentation switch. */
-export function ModeToggle({ mode, setMode }: { mode: ComposerMode; setMode: (m: ComposerMode) => void }) {
+export function ModeToggle({ mode, setMode, compact }: { mode: ComposerMode; setMode: (m: ComposerMode) => void; compact?: boolean }) {
   return (
     <div
       className="flex rounded-full border border-slate-200 bg-white p-0.5 text-xs shadow-sm dark:border-white/10 dark:bg-white/5"
@@ -151,7 +162,8 @@ export function ModeToggle({ mode, setMode }: { mode: ComposerMode; setMode: (m:
           title={m.hint}
           onClick={() => setMode(m.id)}
           className={cx(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition",
+            "flex items-center gap-1.5 rounded-full font-medium transition",
+            compact ? "px-2.5 py-1" : "px-3 py-1.5",
             mode === m.id ? "bg-prism-gradient text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-white",
           )}
         >

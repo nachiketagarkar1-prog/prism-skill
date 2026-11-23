@@ -2,18 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ChevronDown,
+  ClipboardList,
   Download,
   ExternalLink,
   FileSpreadsheet,
   FileText,
   History,
-  Maximize2,
-  Minimize2,
+  ListTree,
   MonitorPlay,
+  PanelLeftClose,
+  PanelLeftOpen,
   Presentation,
   X,
 } from "lucide-react";
-import { useStore, type PanelState } from "../state/store";
+import { draftFromBrief, useStore, type PanelState } from "../state/store";
+import { OutlineEditor } from "./OutlineEditor";
+import { BriefForm } from "./BriefForm";
 import type { EditPlan, Job, Version } from "../types";
 import { sampleByKey } from "../api/catalog";
 import { cx, formatBytes } from "../lib/util";
@@ -123,11 +127,10 @@ function useStudioDoc(url: string, patch: StudioPatch | null): { srcDoc?: string
   return doc?.key === key ? { srcDoc: doc.html, loading: false } : { loading: true };
 }
 
-export function OutputPanel({ panel }: { panel: PanelState }) {
-  const { state, setPanel, sendEditPlan } = useStore();
+export function OutputPanel({ panel, chatHidden, onToggleChat }: { panel: PanelState; chatHidden: boolean; onToggleChat: () => void }) {
+  const { state, setPanel, sendEditPlan, refineFromDraft } = useStore();
   const job = state.jobs[panel.jobId];
   const frameRef = useRef<HTMLIFrameElement>(null);
-  const [wide, setWide] = useState(false);
   const [notice, setNotice] = useState<{ plan: EditPlan; ops: number } | null>(null);
   const [sending, setSending] = useState(false);
   const sendRef = useRef<() => void>(() => {});
@@ -186,14 +189,15 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
   return (
     <section
       className={cx(
-        "fixed inset-0 z-40 flex flex-col border-l border-slate-200 bg-white lg:static lg:z-auto dark:border-white/10 dark:bg-[#120e1a]",
-        wide ? "lg:w-[72%]" : "lg:w-[56%]",
-        "lg:shrink-0 transition-[width]",
+        "fixed inset-0 z-40 flex min-w-0 flex-col bg-white lg:static lg:z-auto lg:flex-1 dark:bg-[#120e1a]",
       )}
       aria-label="Output viewer"
     >
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-2.5 dark:border-white/10">
+      <div className="flex items-center gap-3 border-b border-slate-200 px-3 py-2 dark:border-white/10">
+        <IconBtn label={chatHidden ? "Show chat" : "Hide chat"} onClick={onToggleChat} className="hidden lg:grid">
+          {chatHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </IconBtn>
         <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gvr-purple text-white">
           {isDeck ? <Presentation className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
         </div>
@@ -205,9 +209,6 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
         </div>
         <VersionSelect job={job} value={version.version} onChange={(v) => go({ version: v })} />
         <div className="ml-auto flex items-center gap-1">
-          <IconBtn label={wide ? "Narrow" : "Widen"} onClick={() => setWide(!wide)} className="hidden lg:grid">
-            {wide ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </IconBtn>
           <IconBtn label="Close" onClick={() => setPanel(null)}>
             <X className="h-4 w-4" />
           </IconBtn>
@@ -218,6 +219,12 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
       <div className="flex items-center gap-1 border-b border-slate-100 px-3 text-[13px] dark:border-white/5">
         <Tab active={panel.tab === "studio"} onClick={() => go({ tab: "studio" })} icon={<MonitorPlay className="h-3.5 w-3.5" />}>
           Studio
+        </Tab>
+        <Tab active={panel.tab === "outline"} onClick={() => go({ tab: "outline" })} icon={<ListTree className="h-3.5 w-3.5" />}>
+          {isDeck ? "Outline" : "Contents"}
+        </Tab>
+        <Tab active={panel.tab === "brief"} onClick={() => go({ tab: "brief" })} icon={<ClipboardList className="h-3.5 w-3.5" />}>
+          Brief
         </Tab>
         {primary && (
           <Tab
@@ -322,6 +329,19 @@ export function OutputPanel({ panel }: { panel: PanelState }) {
         )}
         {panel.tab === "file" && isDeck && primary && <SlidesPreview version={version} />}
         {panel.tab === "excel" && excel && <ExcelPreview file={excel} />}
+        {panel.tab === "outline" && <OutlineEditor job={job} version={version.version} />}
+        {panel.tab === "brief" && (
+          <BriefForm
+            key={`${job.id}:${latest.version}`}
+            embedded
+            threadId={job.threadId}
+            msgId={`brief-${job.id}`}
+            intake={{ status: "open", mode: "refine", jobId: job.id, draft: draftFromBrief(job.brief) }}
+            onSubmit={(d) => refineFromDraft(job.id, d)}
+            onCancel={() => go({ tab: "studio" })}
+            onEditOutline={() => go({ tab: "outline" })}
+          />
+        )}
         {panel.tab === "versions" && <Versions job={job} current={version.version} onOpen={(v) => go({ version: v, tab: "studio" })} />}
       </div>
     </section>

@@ -99,6 +99,8 @@ export interface BriefDraft {
   analystReview: boolean;
   files: string[];
   urls: string[];
+  /** A table of contents the client pasted (one chapter per line); empty = keep the current outline. */
+  toc: string;
 }
 
 export interface Thread {
@@ -144,6 +146,39 @@ export interface Brief {
   sources?: SourceChoice;
   files?: string[];
   urls?: string[];
+  /**
+   * The table of contents the client wants, when it differs from the GVR one: chapters and sections in order,
+   * each either taken from a GVR report section (ref) or new, with what to research. Unset = the GVR outline.
+   */
+  outline?: OutlineChapter[];
+  /** A TOC the client pasted in the request, applied (and matched to GVR sections) when the job is built. */
+  tocText?: string;
+}
+
+/** Where an outline node's content comes from: a section or chapter of an earlier spec, or nothing (new). */
+export interface OutlineRef {
+  /** Spec source: a spec URL ("samples/specs/...json") or "job:v2" for a composed version of this job. */
+  src: string;
+  /** [chapter] or [chapter, section] index into that spec's chapters. */
+  path: number[];
+}
+
+export interface OutlineSection {
+  id: string;
+  title: string;
+  /** Set when the content comes from the GVR report (or an earlier version); unset = new, researched. */
+  ref?: OutlineRef;
+  /** For new sections: what the client wants this section to answer or research. */
+  notes?: string;
+  /** Block types in the GVR content, for a short preview ("Chart · Table"). */
+  holds?: string[];
+}
+
+export interface OutlineChapter {
+  id: string;
+  title: string;
+  ref?: OutlineRef;
+  sections: OutlineSection[];
 }
 
 export interface BuildState {
